@@ -26,6 +26,27 @@ class Store extends ChangeNotifier {
 
   void pick(String k) { sel = k; notifyListeners(); }
 
+  String faith = '';
+  List<Map> prayers = [];
+  Map pdone = {};
+
+  void setFaith(String f) {
+    faith = f;
+    prayers = [for (final n in faiths[f]!) {'n': n}];
+    save();
+  }
+
+  bool pd(String d, String n) => ((pdone[d] as List?) ?? []).contains(n);
+
+  void ptoggle(String d, String n) {
+    final l = List.from((pdone[d] as List?) ?? []);
+    if (l.contains(n)) { l.remove(n); } else { l.add(n); }
+    pdone[d] = l;
+    save();
+  }
+
+  int pcount(String d) => prayers.where((p) => pd(d, p['n'])).length;
+
   Future<void> load() async {
     p = await SharedPreferences.getInstance();
     final j = p.getString('data');
@@ -39,7 +60,7 @@ class Store extends ChangeNotifier {
     }
   }
 
-  String get json => jsonEncode({'subjects': subjects, 'tasks': tasks, 'logs': logs, 'notes': notes, 'goal': goal, 'exam': exam, 'examDate': examDate, 'dark': dark, 'amoled': amoled, 'seed': seed, 'mi': mi, 'cel': cel, 'modes': modes});
+  String get json => jsonEncode({'subjects': subjects, 'tasks': tasks, 'logs': logs, 'notes': notes, 'goal': goal, 'exam': exam, 'examDate': examDate, 'dark': dark, 'amoled': amoled, 'seed': seed, 'mi': mi, 'cel': cel, 'modes': modes, 'faith': faith, 'prayers': prayers, 'pdone': pdone});
 
   bool apply(String j) {
     try {
@@ -53,6 +74,9 @@ class Store extends ChangeNotifier {
       amoled = m['amoled'] ?? false; seed = m['seed'] ?? seed; cel = m['cel'] ?? '';
       if (m['modes'] != null) modes = List<Map>.from(m['modes']);
       mi = (m['mi'] ?? 0) % modes.length;
+      faith = m['faith'] ?? '';
+      if (m['prayers'] != null) prayers = List<Map>.from(m['prayers']);
+      pdone = m['pdone'] == null ? {} : Map.from(m['pdone']);
       return true;
     } catch (_) {
       return false;
@@ -172,7 +196,7 @@ class _HomeState extends State<Home> {
   int i = 0;
   @override
   Widget build(BuildContext c) => Scaffold(
-        body: SafeArea(child: IndexedStack(index: i, children: const [TodayPage(), TimerPage(), StatsPage(), SettingsPage()])),
+        body: SafeArea(child: IndexedStack(index: i, children: const [TodayPage(), TimerPage(), PrayerPage(), StatsPage(), SettingsPage()])),
         floatingActionButton: i == 0 ? FloatingActionButton(onPressed: () => addTask(c), child: const Icon(Icons.add)) : null,
         bottomNavigationBar: NavigationBar(
           selectedIndex: i,
@@ -180,6 +204,7 @@ class _HomeState extends State<Home> {
           destinations: const [
             NavigationDestination(icon: Icon(Icons.checklist), label: 'Today'),
             NavigationDestination(icon: Icon(Icons.timer), label: 'Timer'),
+            NavigationDestination(icon: Icon(Icons.self_improvement), label: 'Prayer'),
             NavigationDestination(icon: Icon(Icons.bar_chart), label: 'Stats'),
             NavigationDestination(icon: Icon(Icons.settings), label: 'Settings'),
           ],
@@ -623,5 +648,91 @@ class SettingsPage extends StatelessWidget {
             },
           ),
         ]),
+      );
+}
+
+const Map<String, List<String>> faiths = {
+  'Islam': ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'],
+  'Hinduism': ['Morning Puja', 'Noon Sandhya', 'Evening Aarti'],
+  'Buddhism': ['Morning Chanting', 'Evening Chanting', 'Meditation'],
+  'Christianity': ['Morning Prayer', 'Evening Prayer', 'Night Prayer'],
+  'Sikhism': ['Morning Nitnem', 'Rehras Sahib', 'Kirtan Sohila'],
+  'Other (add my own)': [],
+};
+
+class PrayerPage extends StatelessWidget {
+  const PrayerPage({super.key});
+  @override
+  Widget build(BuildContext c) => ListenableBuilder(
+        listenable: st,
+        builder: (c, _) {
+          if (st.faith == '') {
+            return ListView(padding: const EdgeInsets.all(16), children: [
+              Text('Select your religion', style: Theme.of(c).textTheme.titleLarge),
+              const SizedBox(height: 4),
+              const Text('Common daily prayers will be added. You can edit, delete or add your own anytime.'),
+              const SizedBox(height: 12),
+              for (final f in faiths.keys) Card(child: ListTile(title: Text(f), trailing: const Icon(Icons.chevron_right), onTap: () => st.setFaith(f))),
+            ]);
+          }
+          final now = DateTime.now(), today = dk(now), cs = Theme.of(c).colorScheme;
+          final days = [for (var i = 6; i >= 0; i--) now.subtract(Duration(days: i))];
+          final n = st.prayers.length, dn = st.pcount(today);
+          var wk = 0, ps = 0, d0 = now;
+          for (final d in days) { wk += st.pcount(dk(d)); }
+          bool full(DateTime d) => n > 0 && st.pcount(dk(d)) == n;
+          if (!full(d0)) d0 = d0.subtract(const Duration(days: 1));
+          while (full(d0)) { ps++; d0 = d0.subtract(const Duration(days: 1)); }
+          return ListView(padding: const EdgeInsets.all(12), children: [
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    Expanded(child: Text('${st.faith}  •  Today $dn/$n', style: Theme.of(c).textTheme.titleMedium)),
+                    TextButton(onPressed: () { st.faith = ''; st.save(); }, child: const Text('Change')),
+                  ]),
+                  LinearProgressIndicator(value: n == 0 ? 0.0 : dn / n, minHeight: 10, borderRadius: BorderRadius.circular(8)),
+                  const SizedBox(height: 8),
+                  Text('🔥 Full-day streak: $ps  •  This week: $wk/${n * 7}'),
+                ]),
+              ),
+            ),
+            for (final p in st.prayers)
+              CheckboxListTile(
+                value: st.pd(today, p['n']),
+                title: Text(p['n']),
+                secondary: IconButton(icon: const Icon(Icons.delete_outline), onPressed: () { st.prayers.remove(p); st.save(); }),
+                onChanged: (_) => st.ptoggle(today, p['n']),
+              ),
+            TextButton.icon(
+              icon: const Icon(Icons.add),
+              label: const Text('Add extra prayer'),
+              onPressed: () async {
+                final s = await ask(c, 'Prayer name');
+                if (s == null || s.isEmpty) return;
+                st.prayers.add({'n': s});
+                st.save();
+              },
+            ),
+            const Divider(),
+            Text('Last 7 days (tap to edit)', style: Theme.of(c).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Row(children: [
+              const Expanded(child: SizedBox()),
+              for (final d in days) SizedBox(width: 30, child: Center(child: Text(['M', 'T', 'W', 'T', 'F', 'S', 'S'][d.weekday - 1], style: const TextStyle(fontSize: 12)))),
+            ]),
+            for (final p in st.prayers)
+              Row(children: [
+                Expanded(child: Text(p['n'], overflow: TextOverflow.ellipsis)),
+                for (final d in days)
+                  GestureDetector(
+                    onTap: () => st.ptoggle(dk(d), p['n']),
+                    child: Padding(padding: const EdgeInsets.all(5), child: Icon(st.pd(dk(d), p['n']) ? Icons.check_circle : Icons.circle_outlined, size: 20, color: st.pd(dk(d), p['n']) ? cs.primary : cs.outline)),
+                  ),
+              ]),
+            const SizedBox(height: 20),
+          ]);
+        },
       );
 }
