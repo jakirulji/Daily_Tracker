@@ -111,24 +111,30 @@ class Notif {
           }
         }
       }
-      // Exam reminders: one week before, one day before, and on exam morning.
+      // Exam reminders: group milestones and individual subject exam dates.
       var examId = 500;
+      Future<void> scheduleExamDate(String? raw, String title, String label) async {
+        if (raw == null || raw.isEmpty || examId > 650) return;
+        final date = DateTime.tryParse(raw);
+        if (date == null) return;
+        for (final offset in [7, 1, 0]) {
+          if (examId > 650) break;
+          final day = DateTime(date.year, date.month, date.day - offset, 8);
+          if (day.isBefore(now)) continue;
+          final body = offset == 7 ? '$label "$title" is in 7 days. Keep preparing!' : offset == 1 ? '$label "$title" is tomorrow. Review your syllabus.' : '$label "$title" is today. Good luck!';
+          await _at(examId++, '📚 Exam reminder', body, day);
+        }
+      }
       for (var i = 0; i < s.profiles.length; i++) {
         if (s.profiles[i]['t'] == 'prayer') continue;
         final data = s.dataOf(i);
         for (final exam in (data['exams'] as List? ?? [])) {
           if (exam['done'] == true) continue;
-          final raw = exam['date'] as String?;
-          if (raw == null) continue;
-          final date = DateTime.tryParse(raw);
-          if (date == null) continue;
           final title = (exam['title'] ?? 'Upcoming exam').toString();
-          for (final offset in [7, 1, 0]) {
-            if (examId > 650) break;
-            final day = DateTime(date.year, date.month, date.day - offset, 8);
-            if (day.isBefore(now)) continue;
-            final body = offset == 7 ? '$title is in 7 days. Keep preparing!' : offset == 1 ? '$title is tomorrow. Review your syllabus.' : '$title is today. Good luck!';
-            await _at(examId++, '📚 Exam reminder', body, day);
+          await scheduleExamDate((exam['startDate'] ?? '').toString(), title, 'Exam group starts:');
+          await scheduleExamDate((exam['endDate'] ?? exam['date'] ?? '').toString(), title, 'Exam group ends:');
+          for (final subject in (exam['subjects'] as List? ?? [])) {
+            await scheduleExamDate((subject['date'] ?? exam['endDate'] ?? exam['date'] ?? '').toString(), (subject['name'] ?? 'Subject').toString(), '$title •');
           }
         }
       }
