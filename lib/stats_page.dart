@@ -49,11 +49,11 @@ class StatsPage extends StatelessWidget {
                 const Text('Progress, not perfection.', style: TextStyle(color: Colors.white, fontSize: 23, fontWeight: FontWeight.w900, letterSpacing: -.5)),
                 const SizedBox(height: 16),
                 Row(children: [
-                  Expanded(child: _statValue('\${tot ~/ 60}h \${tot % 60}m', 'Focused this week')),
+                  Expanded(child: _statValue('${tot ~/ 60}h ${tot % 60}m', 'Focused this week')),
                   Container(width: 1, height: 42, color: Colors.white24),
                   Expanded(child: _statValue('$taskDone/$taskTotal', 'Tasks completed')),
                   Container(width: 1, height: 42, color: Colors.white24),
-                  Expanded(child: _statValue('\${st.streak} days', 'Current streak')),
+                  Expanded(child: _statValue('${st.streak} days', 'Current streak')),
                 ]),
               ]),
             ),
