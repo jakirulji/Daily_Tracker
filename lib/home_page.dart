@@ -215,7 +215,7 @@ class HomeDashboardPage extends StatelessWidget {
   Widget _examHighlight(BuildContext context, Map? exam, VoidCallback onTap) {
     final cs = Theme.of(context).colorScheme;
     final now = DateTime.now();
-    final date = exam == null ? null : DateTime.tryParse('\${exam['date']}');
+    final date = exam == null ? null : DateTime.tryParse('${exam['date']}');
     final days = date == null ? null : DateTime(date.year, date.month, date.day).difference(DateTime(now.year, now.month, now.day)).inDays;
     final subjects = List<Map>.from(exam?['subjects'] ?? []);
     final topics = subjects.fold<int>(0, (sum, s) => sum + List<Map>.from(s['topics'] ?? []).length);
@@ -228,15 +228,15 @@ class HomeDashboardPage extends StatelessWidget {
         padding: const EdgeInsets.all(17),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [Icon(Icons.event_available_rounded, color: cs.onTertiaryContainer), const SizedBox(width: 9), Expanded(child: Text('EXAM COUNTDOWN', style: TextStyle(color: cs.onTertiaryContainer, fontWeight: FontWeight.w900, letterSpacing: 1.2, fontSize: 11))),
-            if (exam != null) Text(days == 0 ? 'TODAY' : days == 1 ? 'TOMORROW' : '\$days DAYS LEFT', style: TextStyle(color: cs.onTertiaryContainer, fontWeight: FontWeight.w900, fontSize: 12)),
+            if (exam != null) Text(days == 0 ? 'TODAY' : days == 1 ? 'TOMORROW' : '$days DAYS LEFT', style: TextStyle(color: cs.onTertiaryContainer, fontWeight: FontWeight.w900, fontSize: 12)),
           ]),
           const SizedBox(height: 12),
-          Text(exam == null ? 'Your next exam starts here' : '\${exam['title']}', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: cs.onTertiaryContainer)),
+          Text(exam == null ? 'Your next exam starts here' : '${exam['title']}', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: cs.onTertiaryContainer)),
           const SizedBox(height: 5),
-          Text(exam == null ? 'Add your exam routine, subjects and syllabus to keep preparation on track.' : '\${date!.day.toString().padLeft(2,'0')}/\${date.month.toString().padLeft(2,'0')}/\${date.year}  •  \${subjects.length} subject(s)', style: TextStyle(color: cs.onTertiaryContainer.withOpacity(.85), fontSize: 12)),
+          Text(exam == null ? 'Add your exam routine, subjects and syllabus to keep preparation on track.' : '${date!.day.toString().padLeft(2,'0')}/${date.month.toString().padLeft(2,'0')}/${date.year}  •  ${subjects.length} subject(s)', style: TextStyle(color: cs.onTertiaryContainer.withOpacity(.85), fontSize: 12)),
           if (exam != null) ...[
             const SizedBox(height: 13),
-            Row(children: [Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(99), child: LinearProgressIndicator(value: topics == 0 ? 0 : done / topics, minHeight: 7, backgroundColor: cs.onTertiaryContainer.withOpacity(.12), color: cs.tertiary))), const SizedBox(width: 10), Text('\$done/\$topics topics', style: TextStyle(color: cs.onTertiaryContainer, fontWeight: FontWeight.w800, fontSize: 11))]),
+            Row(children: [Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(99), child: LinearProgressIndicator(value: topics == 0 ? 0 : done / topics, minHeight: 7, backgroundColor: cs.onTertiaryContainer.withOpacity(.12), color: cs.tertiary))), const SizedBox(width: 10), Text('$done/$topics topics', style: TextStyle(color: cs.onTertiaryContainer, fontWeight: FontWeight.w800, fontSize: 11))]),
           ],
           const SizedBox(height: 12),
           Row(mainAxisAlignment: MainAxisAlignment.end, children: [Text(exam == null ? 'Add first exam' : 'Open exam tracker', style: TextStyle(color: cs.onTertiaryContainer, fontWeight: FontWeight.w800)), const SizedBox(width: 5), Icon(Icons.arrow_forward_rounded, color: cs.onTertiaryContainer, size: 18)]),
