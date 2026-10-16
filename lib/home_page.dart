@@ -247,10 +247,10 @@ class HomeDashboardPage extends StatelessWidget {
           const SizedBox(height: 12),
           Text(exam == null ? 'Your next exam group' : '${exam['title']}', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: cs.onTertiaryContainer)),
           const SizedBox(height: 5),
-          Text(exam == null ? 'Add an exam group and track each subject inside Exam Count.' : '${date == null ? 'Date not set' : date.day.toString().padLeft(2,'0') + '/' + date.month.toString().padLeft(2,'0') + '/' + date.year}  •  ${subjects.length} subject(s)', style: TextStyle(color: cs.onTertiaryContainer.withOpacity(.85), fontSize: 12)),
+          Text(exam == null ? 'Add an exam group and track each subject inside Exam Count.' : 'Next: ${date == null ? 'Date not set' : date.day.toString().padLeft(2,'0') + '/' + date.month.toString().padLeft(2,'0') + '/' + date.year}  •  ${subjects.length} subject(s)', style: TextStyle(color: cs.onTertiaryContainer.withOpacity(.85), fontSize: 12)),
           if (exam != null) ...[
             const SizedBox(height: 13),
-            Row(children: [Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(99), child: LinearProgressIndicator(value: topics == 0 ? 0 : done / topics, minHeight: 7, backgroundColor: cs.onTertiaryContainer.withOpacity(.12), color: cs.tertiary))), const SizedBox(width: 10), Text('$done/$topics topics', style: TextStyle(color: cs.onTertiaryContainer, fontWeight: FontWeight.w800, fontSize: 11))]),
+            Row(children: [Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(99), child: LinearProgressIndicator(value: topics == 0 ? 0 : done / topics, minHeight: 7, backgroundColor: cs.onTertiaryContainer.withOpacity(.12), color: cs.tertiary))), const SizedBox(width: 10), Text('$done/$topics · ${topics == 0 ? 0 : (done * 100 / topics).round()}%', style: TextStyle(color: cs.onTertiaryContainer, fontWeight: FontWeight.w800, fontSize: 11))]),
           ],
           const SizedBox(height: 12),
           Row(mainAxisAlignment: MainAxisAlignment.end, children: [Text(exam == null ? 'Add exam group' : 'Open Exam Count for details', style: TextStyle(color: cs.onTertiaryContainer, fontWeight: FontWeight.w800)), const SizedBox(width: 5), Icon(Icons.arrow_forward_rounded, color: cs.onTertiaryContainer, size: 18)]),
