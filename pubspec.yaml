@@ -21,5 +21,16 @@ dependencies:
 dependency_overrides:
   flutter_plugin_android_lifecycle: 2.0.24
 
+dev_dependencies:
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/app_icon.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#171A3B"
+  adaptive_icon_foreground: "assets/app_icon.png"
+
 flutter:
   uses-material-design: true
