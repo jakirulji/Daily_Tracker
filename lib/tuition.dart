@@ -400,6 +400,63 @@ class _THState extends State<TuitionHome> {
     );
   }
 
+  Widget _studentMonthlyBar(Map student, DateTime month, bool selected, ColorScheme cs, VoidCallback onTap) {
+    final t = statOf(student, month.year, month.month);
+    final amount = (student['sal'] as num).toDouble();
+    final progress = amount <= 0 ? 0.0 : (t.amount / amount).clamp(0.0, 1.0);
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 9),
+      color: selected ? cs.primaryContainer.withOpacity(.58) : cs.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: selected ? cs.primary.withOpacity(.55) : cs.outlineVariant.withOpacity(.65)),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(15),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: selected ? cs.primary : cs.secondaryContainer,
+                child: Text(student['n'].toString().trim().isEmpty ? '?' : student['n'].toString().trim()[0].toUpperCase(),
+                  style: TextStyle(color: selected ? cs.onPrimary : cs.onSecondaryContainer, fontWeight: FontWeight.w800)),
+              ),
+              const SizedBox(width: 11),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(student['n'].toString(), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                const SizedBox(height: 3),
+                Text('${t.taught} taught · ${t.proxy} proxy · ${t.leave} leave', style: TextStyle(fontSize: 11, color: cs.outline)),
+              ])),
+              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                Text('৳${_money(t.amount)}', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: cs.primary)),
+                Text('of ৳${_money(amount)}', style: TextStyle(fontSize: 11, color: cs.outline)),
+              ]),
+            ]),
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(99),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 6,
+                backgroundColor: cs.surfaceContainerHighest,
+                color: selected ? cs.primary : const Color(0xFF35A879),
+              ),
+            ),
+            const SizedBox(height: 7),
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              Text('${t.payableCapped}/${t.cls} payable days', style: TextStyle(fontSize: 11, color: cs.outline, fontWeight: FontWeight.w600)),
+              Text(selected ? 'Selected' : 'View calendar', style: TextStyle(fontSize: 11, color: cs.primary, fontWeight: FontWeight.w700)),
+            ]),
+          ]),
+        ),
+      ),
+    );
+  }
+
   Widget menuTile(BuildContext c, IconData i, String t, Widget page) => ListTile(leading: Icon(i), title: Text(t), onTap: () => go(c, page));
 
   @override
@@ -408,7 +465,18 @@ class _THState extends State<TuitionHome> {
         builder: (c, _) {
           final s = tst.cur, cs = Theme.of(c).colorScheme;
           return Scaffold(
-            appBar: AppBar(title: const Text('Tuition Tracker')),
+            appBar: AppBar(
+              title: const Text('Tuition Tracker', style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -.3)),
+              centerTitle: false,
+              actions: [
+                IconButton(
+                  tooltip: 'Add student',
+                  onPressed: () => Navigator.push(c, MaterialPageRoute(builder: (_) => const StudentsPage())),
+                  icon: const Icon(Icons.person_add_alt_1_rounded),
+                ),
+                const SizedBox(width: 4),
+              ],
+            ),
             drawer: Drawer(
               child: SafeArea(
                 child: ListView(children: [
@@ -449,24 +517,113 @@ class _THState extends State<TuitionHome> {
                       ),
                     ]),
                   )
-                : ListView(padding: const EdgeInsets.all(12), children: [
-                    Wrap(spacing: 8, children: [
-                      for (var i = 0; i < tst.students.length; i++)
-                        ChoiceChip(label: Text(tst.students[i]['n'].toString()), selected: tst.students[i] == s, onSelected: (_) => tst.select(i)),
+                : ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 24), children: [
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF252A67), Color(0xFF5557C8), Color(0xFF7775E8)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(26),
+                        boxShadow: [
+                          BoxShadow(color: const Color(0xFF4F46C8).withOpacity(.20), blurRadius: 22, offset: const Offset(0, 9)),
+                        ],
+                      ),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Row(children: [
+                          Container(
+                            width: 44, height: 44,
+                            decoration: BoxDecoration(color: Colors.white.withOpacity(.16), borderRadius: BorderRadius.circular(15)),
+                            child: const Icon(Icons.school_rounded, color: Colors.white, size: 25),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text('TUITION OVERVIEW', style: TextStyle(color: Color(0xFFD9DBFF), fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.25)),
+                            SizedBox(height: 3),
+                            Text('Your teaching, organised.', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+                          ])),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                            decoration: BoxDecoration(color: Colors.white.withOpacity(.15), borderRadius: BorderRadius.circular(13)),
+                            child: Text('${tst.students.length} students', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
+                          ),
+                        ]),
+                        const SizedBox(height: 20),
+                        Text('${_mon[month.month - 1]} ${month.year}', style: const TextStyle(color: Color(0xFFE1E2FF), fontSize: 13, fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 5),
+                        Text('৳${_money(statOf(s, month.year, month.month).amount)}', style: const TextStyle(color: Colors.white, fontSize: 31, height: 1.1, fontWeight: FontWeight.w900, letterSpacing: -.7)),
+                        const SizedBox(height: 4),
+                        const Text('Estimated payable salary for selected student', style: TextStyle(color: Color(0xFFE1E2FF), fontSize: 12)),
+                      ]),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                      Text('STUDENT PROFILES', style: TextStyle(color: cs.onSurface, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 1)),
+                      Text('${tst.students.length} total', style: TextStyle(color: cs.outline, fontSize: 12, fontWeight: FontWeight.w600)),
                     ]),
-                    _monthBar(month, (d) => setState(() => month = DateTime(month.year, month.month + d))),
-                    calendar(s, cs),
-                    const SizedBox(height: 8),
-                    Wrap(spacing: 12, runSpacing: 4, children: [
-                      legend(Colors.green, 'Taught'),
-                      legend(Colors.orange, 'Student leave'),
-                      legend(Colors.blue, 'Proxy day'),
-                      legend(Colors.blue, 'Covered by proxy', outline: true),
-                      legend(cs.primary, 'Tap to mark', outline: true),
-                      legend(Colors.red, 'Missed', outline: true),
-                    ]),
-                    const SizedBox(height: 4),
-                    Text('Marked dates are locked. To change, use Menu → Edit Attendance.', style: TextStyle(fontSize: 12, color: cs.outline)),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      height: 52,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: tst.students.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 8),
+                        itemBuilder: (_, i) {
+                          final student = tst.students[i];
+                          final selected = student == s;
+                          return ChoiceChip(
+                            avatar: CircleAvatar(
+                              radius: 12,
+                              backgroundColor: selected ? Colors.white.withOpacity(.18) : cs.primaryContainer,
+                              child: Text(student['n'].toString().trim().isEmpty ? '?' : student['n'].toString().trim()[0].toUpperCase(),
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: selected ? Colors.white : cs.onPrimaryContainer)),
+                            ),
+                            label: Text(student['n'].toString(), maxLines: 1, overflow: TextOverflow.ellipsis),
+                            selected: selected,
+                            showCheckmark: false,
+                            selectedColor: const Color(0xFF4F46C8),
+                            backgroundColor: cs.surface,
+                            side: BorderSide(color: selected ? const Color(0xFF4F46C8) : cs.outlineVariant),
+                            labelStyle: TextStyle(color: selected ? Colors.white : cs.onSurface, fontWeight: FontWeight.w700),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            onSelected: (_) => tst.select(i),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+                      decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(24), border: Border.all(color: cs.outlineVariant.withOpacity(.65))),
+                      child: Column(children: [
+                        Row(children: [
+                          const Icon(Icons.calendar_month_rounded, size: 20, color: Color(0xFF5557C8)),
+                          const SizedBox(width: 8),
+                          const Expanded(child: Text('Attendance calendar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800))),
+                          _monthBar(month, (d) => setState(() => month = DateTime(month.year, month.month + d))),
+                        ]),
+                        const SizedBox(height: 10),
+                        calendar(s, cs),
+                        const SizedBox(height: 12),
+                        Wrap(spacing: 12, runSpacing: 9, children: [
+                          legend(const Color(0xFF239B68), 'Taught'),
+                          legend(const Color(0xFFE69A32), 'Student leave'),
+                          legend(const Color(0xFF4775E8), 'Proxy day'),
+                          legend(const Color(0xFF4775E8), 'Covered by proxy', outline: true),
+                          legend(cs.primary, 'Tap to mark', outline: true),
+                          legend(const Color(0xFFD9534F), 'Missed', outline: true),
+                        ]),
+                        const SizedBox(height: 8),
+                        Align(alignment: Alignment.centerLeft, child: Text('Marked dates are locked. To change, use Menu → Edit Attendance.', style: TextStyle(fontSize: 11, color: cs.outline))),
+                      ]),
+                    ),
+                    const SizedBox(height: 20),
+                    Text('MONTHLY STUDENT SUMMARY', style: TextStyle(color: cs.onSurface, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 1)),
+                    const SizedBox(height: 10),
+                    for (final student in tst.students)
+                      _studentMonthlyBar(student, month, student == s, cs, () => tst.select(tst.students.indexOf(student))),
                     const SizedBox(height: 12),
                     summary(s),
                   ]),
