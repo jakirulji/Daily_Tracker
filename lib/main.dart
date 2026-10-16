@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 String dk(DateTime d) =>
@@ -19,23 +20,30 @@ class Store extends ChangeNotifier {
   Future<void> load() async {
     p = await SharedPreferences.getInstance();
     final j = p.getString('data');
-    if (j != null) {
-      final m = jsonDecode(j);
-      subjects = List<Map>.from(m['subjects']);
-      tasks = List<Map>.from(m['tasks']);
-      logs = Map.from(m['logs']);
-      notes = Map.from(m['notes']);
-      goal = (m['goal'] as num).toDouble();
-      exam = m['exam'];
-      examDate = m['examDate'];
-      dark = m['dark'];
-    }
+    if (j != null) apply(j);
     if (subjects.isEmpty) {
       subjects = [
         {'n': 'Math', 'c': palette[0]},
         {'n': 'English', 'c': palette[1]},
         {'n': 'Science', 'c': palette[2]},
       ];
+    }
+  }
+
+  String get json => jsonEncode({'subjects': subjects, 'tasks': tasks, 'logs': logs, 'notes': notes, 'goal': goal, 'exam': exam, 'examDate': examDate, 'dark': dark});
+
+  bool apply(String j) {
+    try {
+      final m = jsonDecode(j);
+      final s = List<Map>.from(m['subjects']), t = List<Map>.from(m['tasks']);
+      final l = Map.from(m['logs']), n = Map.from(m['notes']);
+      final g = (m['goal'] as num).toDouble().clamp(1.0, 12.0).toDouble();
+      final e = m['exam'] as String, ed = m['examDate'] as String, d = m['dark'] as bool;
+      if (s.isEmpty) return false;
+      subjects = s; tasks = t; logs = l; notes = n; goal = g; exam = e; examDate = ed; dark = d;
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -370,6 +378,27 @@ class SettingsPage extends StatelessWidget {
               st.exam = n;
               st.examDate = dk(d);
               st.save();
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.upload),
+            title: const Text('Backup (copy data)'),
+            subtitle: const Text('Paste it in Telegram/Notes/Email to keep it safe'),
+            onTap: () async {
+              await Clipboard.setData(ClipboardData(text: st.json));
+              if (c.mounted) ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content: Text('Backup copied. Now paste it somewhere safe.')));
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.download),
+            title: const Text('Restore from backup'),
+            subtitle: const Text('Paste your backup text (replaces current data)'),
+            onTap: () async {
+              final t = await ask(c, 'Paste backup here');
+              if (t == null || t.isEmpty || !c.mounted) return;
+              final ok = st.apply(t);
+              if (ok) st.save();
+              if (c.mounted) ScaffoldMessenger.of(c).showSnackBar(SnackBar(content: Text(ok ? 'Restored!' : 'Invalid backup text')));
             },
           ),
           const Divider(),
