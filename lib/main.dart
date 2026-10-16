@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'store.dart';
 import 'notify.dart';
 import 'ui.dart';
+import 'home_page.dart';
 import 'today_page.dart';
 import 'timer_page.dart';
 import 'stats_page.dart';
@@ -50,24 +51,28 @@ class _HomeState extends State<Home> {
         listenable: st,
         builder: (c, _) {
           final tr = st.tracker;
-          final List<Widget> pages = tr ? const [TodayPage(), TimerPage(), StatsPage(), SettingsPage()] : const [PrayerPage(), SettingsPage()];
+          final List<Widget> pages = tr
+              ? const [HomeDashboardPage(), TodayPage(), TimerPage(), StatsPage(), SettingsPage()]
+              : const [HomeDashboardPage(), PrayerPage(), SettingsPage()];
           final idx = st.tab >= pages.length ? 0 : st.tab;
           return Scaffold(
-            appBar: AppBar(title: Text(st.pname)),
+            appBar: AppBar(title: Text(st.tab == 0 ? 'Daily Tracker' : st.pname)),
             drawer: const AppDrawer(),
             body: SafeArea(child: IndexedStack(key: ValueKey(st.cur), index: idx, children: pages)),
-            floatingActionButton: tr && idx == 0 ? FloatingActionButton(onPressed: () => taskDialog(c), child: const Icon(Icons.add)) : null,
+            floatingActionButton: tr && idx == 1 ? FloatingActionButton(onPressed: () => taskDialog(c), child: const Icon(Icons.add)) : null,
             bottomNavigationBar: NavigationBar(
               selectedIndex: idx,
               onDestinationSelected: st.goTab,
               destinations: tr
                   ? const [
-                      NavigationDestination(icon: Icon(Icons.checklist), label: 'Today'),
+                      NavigationDestination(icon: Icon(Icons.dashboard_rounded), label: 'Home'),
+                      NavigationDestination(icon: Icon(Icons.checklist), label: 'Study'),
                       NavigationDestination(icon: Icon(Icons.timer), label: 'Timer'),
                       NavigationDestination(icon: Icon(Icons.bar_chart), label: 'Stats'),
                       NavigationDestination(icon: Icon(Icons.settings), label: 'Settings'),
                     ]
                   : const [
+                      NavigationDestination(icon: Icon(Icons.dashboard_rounded), label: 'Home'),
                       NavigationDestination(icon: Icon(Icons.self_improvement), label: 'Prayer'),
                       NavigationDestination(icon: Icon(Icons.settings), label: 'Settings'),
                     ],
