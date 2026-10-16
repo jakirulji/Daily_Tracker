@@ -70,7 +70,7 @@ void setDone(Map e, String d, bool v) {
 
 class Store extends ChangeNotifier {
   late SharedPreferences p;
-  List<Map> profiles = [], subjects = [], tasks = [], modes = [], prayers = [];
+  List<Map> profiles = [], subjects = [], tasks = [], modes = [], prayers = [], exams = [];
   Map logs = {}, notes = {}, pdone = {}, oldCol = {};
   double goal = 4;
   String exam = '', examDate = '', cel = '', faith = '', sel = dk(DateTime.now());
@@ -91,7 +91,7 @@ class Store extends ChangeNotifier {
     }
   }
 
-  Map get pdata => {'subjects': subjects, 'tasks': tasks, 'logs': logs, 'notes': notes, 'goal': goal, 'exam': exam, 'examDate': examDate, 'cel': cel, 'modes': modes, 'mi': mi, 'faith': faith, 'prayers': prayers, 'pdone': pdone, 'oldCol': oldCol};
+  Map get pdata => {'subjects': subjects, 'tasks': tasks, 'logs': logs, 'notes': notes, 'goal': goal, 'exam': exam, 'examDate': examDate, 'cel': cel, 'modes': modes, 'mi': mi, 'faith': faith, 'prayers': prayers, 'pdone': pdone, 'oldCol': oldCol, 'exams': exams};
 
   // Data of any profile (current one comes from live fields)
   Map dataOf(int i) => i == cur ? pdata : (profiles[i]['d'] as Map? ?? {});
@@ -112,6 +112,7 @@ class Store extends ChangeNotifier {
     faith = m['faith'] ?? '';
     prayers = List<Map>.from(m['prayers'] ?? []);
     pdone = Map.from(m['pdone'] ?? {});
+    exams = List<Map>.from(m['exams'] ?? []);
     oldCol = Map.from(m['oldCol'] ?? {});
   }
 
