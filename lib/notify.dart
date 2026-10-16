@@ -111,6 +111,27 @@ class Notif {
           }
         }
       }
+      // Exam reminders: one week before, one day before, and on exam morning.
+      var examId = 500;
+      for (var i = 0; i < s.profiles.length; i++) {
+        if (s.profiles[i]['t'] == 'prayer') continue;
+        final data = s.dataOf(i);
+        for (final exam in (data['exams'] as List? ?? [])) {
+          if (exam['done'] == true) continue;
+          final raw = exam['date'] as String?;
+          if (raw == null) continue;
+          final date = DateTime.tryParse(raw);
+          if (date == null) continue;
+          final title = (exam['title'] ?? 'Upcoming exam').toString();
+          for (final offset in [7, 1, 0]) {
+            if (examId > 650) break;
+            final day = DateTime(date.year, date.month, date.day - offset, 8);
+            if (day.isBefore(now)) continue;
+            final body = offset == 7 ? '$title is in 7 days. Keep preparing!' : offset == 1 ? '$title is tomorrow. Review your syllabus.' : '$title is today. Good luck!';
+            await _at(examId++, '📚 Exam reminder', body, day);
+          }
+        }
+      }
     } catch (_) {}
   }
 }
