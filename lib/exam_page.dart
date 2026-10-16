@@ -36,20 +36,24 @@ class _ExamPageState extends State<ExamPage> {
     final title = TextEditingController(text: old?['title'] ?? '');
     final type = TextEditingController(text: old?['type'] ?? '');
     final now = DateTime.now();
-    DateTime selected = DateTime.tryParse(old?['date']?.toString() ?? '') ?? now.add(const Duration(days:30));
+    DateTime groupStart = DateTime.tryParse(old?['startDate']?.toString() ?? '') ?? now;
+    DateTime groupEnd = DateTime.tryParse(old?['endDate']?.toString() ?? old?['date']?.toString() ?? '') ?? now.add(const Duration(days:30));
+    String iso(DateTime d) => '${d.year}-${d.month.toString().padLeft(2,'0')}-${d.day.toString().padLeft(2,'0')}';
+    Future<DateTime?> chooseDate(BuildContext d, DateTime value) {
+      final n=DateTime.now();
+      return showDatePicker(context:d, initialDate:value.isBefore(DateTime(n.year,n.month,n.day))?DateTime(n.year,n.month,n.day):value, firstDate:DateTime(n.year,n.month,n.day),lastDate:DateTime(2100));
+    }
     final result = await showDialog<Map>(context: context, builder: (d) => StatefulBuilder(builder: (d,set) => AlertDialog(
-      title: Text(old == null ? 'Add exam' : 'Edit exam'),
+      title: Text(old == null ? 'Add exam group' : 'Edit exam group'),
       content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextField(controller:title, autofocus:true, decoration:const InputDecoration(labelText:'Exam name',hintText:'e.g. Anatomy Supply Exam')),
-        TextField(controller:type, decoration:const InputDecoration(labelText:'Exam type / session (optional)')),
-        ListTile(contentPadding:EdgeInsets.zero, leading:const Icon(Icons.calendar_month), title:const Text('Exam date'), subtitle:Text(dateLabel(selected.toIso8601String())), onTap:() async {
-          final n=DateTime.now();
-          final p=await showDatePicker(context:d, initialDate:selected.isBefore(DateTime(n.year,n.month,n.day))?DateTime(n.year,n.month,n.day):selected, firstDate:DateTime(n.year,n.month,n.day),lastDate:DateTime(2100));
-          if(p!=null) set(()=>selected=p);
-        }),
+        TextField(controller:title, autofocus:true, decoration:const InputDecoration(labelText:'Exam group name',hintText:'e.g. BHMS Supply Examination')),
+        TextField(controller:type, decoration:const InputDecoration(labelText:'Session / year (optional)')),
+        ListTile(contentPadding:EdgeInsets.zero, leading:const Icon(Icons.event_available_outlined), title:const Text('Group start date'), subtitle:Text(dateLabel(iso(groupStart))), onTap:() async { final p=await chooseDate(d,groupStart); if(p!=null) set(()=>groupStart=p); }),
+        ListTile(contentPadding:EdgeInsets.zero, leading:const Icon(Icons.event_note_outlined), title:const Text('Group end date'), subtitle:Text(dateLabel(iso(groupEnd))), onTap:() async { final p=await chooseDate(d,groupEnd); if(p!=null) set(()=>groupEnd=p); }),
+        const Padding(padding:EdgeInsets.only(top:4),child:Text('You can set a separate exam date for every subject too.',style:TextStyle(fontSize:12))),
       ])),
       actions:[TextButton(onPressed:()=>Navigator.pop(d),child:const Text('Cancel')),FilledButton(onPressed:(){
-        if(title.text.trim().isNotEmpty) Navigator.pop(d, {'title':title.text.trim(),'type':type.text.trim(),'date':selected.year.toString()+'-'+selected.month.toString().padLeft(2,'0')+'-'+selected.day.toString().padLeft(2,'0')});
+        if(title.text.trim().isNotEmpty) Navigator.pop(d, {'title':title.text.trim(),'type':type.text.trim(),'startDate':iso(groupStart),'endDate':iso(groupEnd),'date':iso(groupEnd)});
       },child:const Text('Save'))],
     )));
     if(result==null || !mounted) return;
@@ -60,10 +64,13 @@ class _ExamPageState extends State<ExamPage> {
   Future<void> addSubject(Map exam,{Map? old}) async {
     final name=TextEditingController(text:old?['name']??'');
     final input=TextEditingController(text:List<Map>.from(old?['topics']??[]).map((t)=>t['name']).join('\n'));
-    final result=await showDialog<Map>(context:context,builder:(d)=>AlertDialog(
+    DateTime subjectDate = DateTime.tryParse(old?['date']?.toString() ?? exam['endDate']?.toString() ?? exam['date']?.toString() ?? '') ?? DateTime.now().add(const Duration(days:30));
+    String isoSubject(DateTime d) => '${d.year}-${d.month.toString().padLeft(2,'0')}-${d.day.toString().padLeft(2,'0')}';
+    final result=await showDialog<Map>(context:context,builder:(d)=>StatefulBuilder(builder:(d,set)=>AlertDialog(
       title:Text(old==null?'Add subject & syllabus':'Edit subject'),
       content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
         TextField(controller:name,autofocus:true,decoration:const InputDecoration(labelText:'Subject name')),
+        ListTile(contentPadding:EdgeInsets.zero,leading:const Icon(Icons.calendar_month),title:const Text('Subject exam date'),subtitle:Text(dateLabel(isoSubject(subjectDate))),onTap:() async { final n=DateTime.now(); final p=await showDatePicker(context:d,initialDate:subjectDate.isBefore(DateTime(n.year,n.month,n.day))?DateTime(n.year,n.month,n.day):subjectDate,firstDate:DateTime(n.year,n.month,n.day),lastDate:DateTime(2100)); if(p!=null)set(()=>subjectDate=p); }),
         const SizedBox(height:10),
         TextField(controller:input,minLines:4,maxLines:8,decoration:const InputDecoration(labelText:'Syllabus topics',hintText:'One topic per line')),
       ])),
@@ -72,10 +79,10 @@ class _ExamPageState extends State<ExamPage> {
           final previous=List<Map>.from(old?['topics']??[]);
           final names=input.text.split('\n').map((x)=>x.trim()).where((x)=>x.isNotEmpty);
           final ts=names.map((n){final found=previous.where((t)=>t['name']==n).toList(); return found.isEmpty? <String,dynamic>{'name':n,'done':false}:Map<String,dynamic>.from(found.first);}).toList();
-          Navigator.pop(d,{'name':name.text.trim(),'topics':ts});
+          Navigator.pop(d,{'name':name.text.trim(),'date':isoSubject(subjectDate),'topics':ts});
         }
       },child:const Text('Save'))],
-    ));
+    )));
     if(result==null || !mounted)return;
     final list=List<Map>.from(exam['subjects']??[]);
     if(old==null) list.add(result); else {final i=list.indexOf(old);if(i>=0)list[i]=result;}
@@ -116,14 +123,17 @@ class _ExamPageState extends State<ExamPage> {
     final subjects=List<Map>.from(e['subjects']??[]);
     final total=subjects.fold<int>(0,(sum,s)=>sum+List<Map>.from(s['topics']??[]).length);
     final complete=subjects.fold<int>(0,(sum,s)=>sum+List<Map>.from(s['topics']??[]).where((t)=>t['done']==true).length);
-    final d=days((e['date']??'').toString());
+    final groupDate=(e['endDate']??e['date']??'').toString();
+    final subjectDates=subjects.map((s)=>DateTime.tryParse((s['date']??groupDate).toString())).whereType<DateTime>().toList()..sort();
+    final effectiveDate=subjectDates.isEmpty?DateTime.tryParse(groupDate):subjectDates.first;
+    final d=effectiveDate==null?0:DateTime(effectiveDate.year,effectiveDate.month,effectiveDate.day).difference(DateTime.now().year==0?DateTime.now():DateTime(DateTime.now().year,DateTime.now().month,DateTime.now().day)).inDays;
     final past=d<0||e['done']==true;
     final status=e['done']==true?'Completed':d<0?'Past exam':d==0?'Today':d==1?'Tomorrow':d.toString()+' days left';
     return Card(elevation:0,margin:const EdgeInsets.only(bottom:12),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(22),side:BorderSide(color:cs.outlineVariant)),child:ExpansionTile(
       key:ValueKey((e['title']??'').toString()+(e['date']??'').toString()),
       leading:CircleAvatar(backgroundColor:past?cs.surfaceContainerHighest:cs.tertiaryContainer,child:Icon(past?Icons.history_rounded:Icons.school_rounded)),
       title:Text((e['title']??'Exam').toString(),style:const TextStyle(fontWeight:FontWeight.w900)),
-      subtitle:Text(dateLabel((e['date']??'').toString())+' • '+status+(((e['type']??'').toString().isEmpty)?'':'\n'+e['type'].toString())),
+      subtitle:Text((e['startDate']!=null?dateLabel(e['startDate'].toString())+' – ':'')+dateLabel((e['endDate']??e['date']??'').toString())+' • '+status+(((e['type']??'').toString().isEmpty)?'':'\n'+e['type'].toString())),
       childrenPadding:const EdgeInsets.fromLTRB(14,0,14,14),
       children:[
         Row(children:[const Expanded(child:Text('Syllabus preparation',style:TextStyle(fontWeight:FontWeight.w800))),Text(complete.toString()+'/'+total.toString()+' topics')]),
@@ -145,7 +155,7 @@ class _ExamPageState extends State<ExamPage> {
     final topics=List<Map>.from(subject['topics']??[]);
     final done=topics.where((t)=>t['done']==true).length;
     return Container(margin:const EdgeInsets.only(top:9),padding:const EdgeInsets.fromLTRB(10,8,6,8),decoration:BoxDecoration(color:cs.surfaceContainerLow,borderRadius:BorderRadius.circular(15)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-      Row(children:[Expanded(child:Text((subject['name']??'Subject').toString(),style:const TextStyle(fontWeight:FontWeight.w800))),Text(done.toString()+'/'+topics.length.toString()),IconButton(visualDensity:VisualDensity.compact,onPressed:()=>addSubject(exam,old:subject),icon:const Icon(Icons.edit_outlined,size:18))]),
+      Row(children:[Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text((subject['name']??'Subject').toString(),style:const TextStyle(fontWeight:FontWeight.w800)),Text('Exam: '+dateLabel((subject['date']??exam['endDate']??exam['date']??'').toString()),style:TextStyle(fontSize:11,color:cs.onSurfaceVariant))])),Text(done.toString()+'/'+topics.length.toString()),IconButton(visualDensity:VisualDensity.compact,onPressed:()=>addSubject(exam,old:subject),icon:const Icon(Icons.edit_outlined,size:18))]),
       if(topics.isEmpty) const Padding(padding:EdgeInsets.only(left:10,bottom:6),child:Text('No topics added yet.')),
       for(final t in topics) CheckboxListTile(dense:true,contentPadding:const EdgeInsets.only(left:2),visualDensity:VisualDensity.compact,value:t['done']==true,title:Text((t['name']??'').toString(),style:TextStyle(fontSize:13,decoration:t['done']==true?TextDecoration.lineThrough:null)),onChanged:(v){t['done']=v==true;save();setState((){});}),
     ]));
