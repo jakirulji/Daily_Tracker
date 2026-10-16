@@ -36,7 +36,7 @@ class _ExamPageState extends State<ExamPage> {
     final title = TextEditingController(text: old?['title'] ?? '');
     final type = TextEditingController(text: old?['type'] ?? '');
     final now = DateTime.now();
-    DateTime groupStart = DateTime.tryParse(old?['startDate']?.toString() ?? '') ?? now;
+    DateTime groupStart = DateTime.tryParse(old?['startDate']?.toString() ?? old?['date']?.toString() ?? '') ?? now;
     DateTime groupEnd = DateTime.tryParse(old?['endDate']?.toString() ?? old?['date']?.toString() ?? '') ?? now.add(const Duration(days:30));
     String iso(DateTime d) => '${d.year}-${d.month.toString().padLeft(2,'0')}-${d.day.toString().padLeft(2,'0')}';
     Future<DateTime?> chooseDate(BuildContext d, DateTime value) {
@@ -98,8 +98,15 @@ class _ExamPageState extends State<ExamPage> {
   Widget build(BuildContext context) {
     final cs=Theme.of(context).colorScheme;
     final all=exams;
-    final upcoming=all.where((e)=>e['done']!=true && days((e['date']??'').toString())>=0).toList();
-    final past=all.where((e)=>e['done']==true || days((e['date']??'').toString())<0).toList();
+    bool hasUpcomingDate(Map e) {
+      final subjects=List<Map>.from(e['subjects']??[]);
+      final groupDate=(e['endDate']??e['date']??'').toString();
+      final dates=subjects.map((s)=>DateTime.tryParse((s['date']??groupDate).toString())).whereType<DateTime>().toList();
+      if(dates.any((d)=>days(d.toIso8601String())>=0)) return true;
+      return days(groupDate)>=0;
+    }
+    final upcoming=all.where((e)=>e['done']!=true && hasUpcomingDate(e)).toList();
+    final past=all.where((e)=>e['done']==true || !hasUpcomingDate(e)).toList();
     return Scaffold(
       appBar:AppBar(title:const Text('Exam Tracker')),
       floatingActionButton:FloatingActionButton.extended(onPressed:()=>addExam(),icon:const Icon(Icons.add),label:const Text('Add exam')),
@@ -124,9 +131,12 @@ class _ExamPageState extends State<ExamPage> {
     final total=subjects.fold<int>(0,(sum,s)=>sum+List<Map>.from(s['topics']??[]).length);
     final complete=subjects.fold<int>(0,(sum,s)=>sum+List<Map>.from(s['topics']??[]).where((t)=>t['done']==true).length);
     final groupDate=(e['endDate']??e['date']??'').toString();
+    final today=DateTime.now();
+    final todayOnly=DateTime(today.year,today.month,today.day);
     final subjectDates=subjects.map((s)=>DateTime.tryParse((s['date']??groupDate).toString())).whereType<DateTime>().toList()..sort();
-    final effectiveDate=subjectDates.isEmpty?DateTime.tryParse(groupDate):subjectDates.first;
-    final d=effectiveDate==null?0:DateTime(effectiveDate.year,effectiveDate.month,effectiveDate.day).difference(DateTime.now().year==0?DateTime.now():DateTime(DateTime.now().year,DateTime.now().month,DateTime.now().day)).inDays;
+    final upcomingDates=subjectDates.where((x)=>!DateTime(x.year,x.month,x.day).isBefore(todayOnly)).toList();
+    final effectiveDate=upcomingDates.isNotEmpty?upcomingDates.first:(DateTime.tryParse(groupDate)??(subjectDates.isEmpty?null:subjectDates.first));
+    final d=effectiveDate==null?0:DateTime(effectiveDate.year,effectiveDate.month,effectiveDate.day).difference(todayOnly).inDays;
     final past=d<0||e['done']==true;
     final status=e['done']==true?'Completed':d<0?'Past exam':d==0?'Today':d==1?'Tomorrow':d.toString()+' days left';
     return Card(elevation:0,margin:const EdgeInsets.only(bottom:12),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(22),side:BorderSide(color:cs.outlineVariant)),child:ExpansionTile(
