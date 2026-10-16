@@ -4,101 +4,174 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+ 
 String dk(DateTime d) =>
     '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-
+ 
 const palette = [0xFF5C6BC0, 0xFF26A69A, 0xFFEF5350, 0xFFFFA726, 0xFF8D6E63, 0xFFAB47BC, 0xFF42A5F5, 0xFF66BB6A];
-
+ 
+List<Map> defSubjects() => [
+      {'n': 'Work', 'c': palette[0]},
+      {'n': 'Personal', 'c': palette[1]},
+      {'n': 'Health', 'c': palette[2]},
+    ];
+ 
+List<Map> defModes() => [
+      {'n': 'Classic', 'f': 25, 'b': 5},
+      {'n': 'Deep', 'f': 50, 'b': 10},
+      {'n': 'Marathon', 'f': 90, 'b': 15},
+    ];
+ 
+List<Map> defProfiles() => [
+      {'n': 'Study', 't': 'tracker', 'd': {'subjects': [{'n': 'Math', 'c': palette[0]}, {'n': 'English', 'c': palette[1]}, {'n': 'Science', 'c': palette[2]}]}},
+      {'n': 'Prayer', 't': 'prayer', 'd': {}},
+      {'n': 'Other', 't': 'tracker', 'd': {}},
+    ];
+ 
 class Store extends ChangeNotifier {
   late SharedPreferences p;
-  List<Map> subjects = [], tasks = [];
-  Map logs = {}, notes = {};
+  List<Map> profiles = [], subjects = [], tasks = [], modes = [], prayers = [];
+  Map logs = {}, notes = {}, pdone = {};
   double goal = 4;
-  String exam = '', examDate = '', cel = '', sel = dk(DateTime.now());
+  String exam = '', examDate = '', cel = '', faith = '', sel = dk(DateTime.now());
   bool dark = false, amoled = false;
-  int seed = 0xFF5C6BC0, mi = 0;
-  List<Map> modes = [
-    {'n': 'Classic', 'f': 25, 'b': 5},
-    {'n': 'Deep', 'f': 50, 'b': 10},
-    {'n': 'Marathon', 'f': 90, 'b': 15},
-  ];
-
+  int seed = 0xFF5C6BC0, mi = 0, cur = 0, tab = 0;
+ 
+  bool get tracker => profiles[cur]['t'] != 'prayer';
+  String get pname => profiles[cur]['n'];
+ 
+  Future<void> load() async {
+    p = await SharedPreferences.getInstance();
+    final j = p.getString('data');
+    if (j == null || !apply(j)) {
+      profiles = defProfiles();
+      cur = 0;
+      loadP(profiles[0]['d']);
+    }
+  }
+ 
+  Map get pdata => {'subjects': subjects, 'tasks': tasks, 'logs': logs, 'notes': notes, 'goal': goal, 'exam': exam, 'examDate': examDate, 'cel': cel, 'modes': modes, 'mi': mi, 'faith': faith, 'prayers': prayers, 'pdone': pdone};
+ 
+  void loadP(Map m) {
+    subjects = m['subjects'] == null ? defSubjects() : List<Map>.from(m['subjects']);
+    if (subjects.isEmpty) subjects = defSubjects();
+    tasks = List<Map>.from(m['tasks'] ?? []);
+    logs = Map.from(m['logs'] ?? {});
+    notes = Map.from(m['notes'] ?? {});
+    goal = ((m['goal'] ?? 4) as num).toDouble().clamp(1.0, 12.0).toDouble();
+    exam = m['exam'] ?? '';
+    examDate = m['examDate'] ?? '';
+    cel = m['cel'] ?? '';
+    modes = m['modes'] == null ? defModes() : List<Map>.from(m['modes']);
+    if (modes.isEmpty) modes = defModes();
+    mi = ((m['mi'] ?? 0) as int) % modes.length;
+    faith = m['faith'] ?? '';
+    prayers = List<Map>.from(m['prayers'] ?? []);
+    pdone = Map.from(m['pdone'] ?? {});
+  }
+ 
+  String get json {
+    profiles[cur]['d'] = pdata;
+    return jsonEncode({'profiles': profiles, 'cur': cur, 'dark': dark, 'amoled': amoled, 'seed': seed});
+  }
+ 
+  void _load(String j) {
+    final m = jsonDecode(j) as Map;
+    final ps = m['profiles'] != null
+        ? List<Map>.from(m['profiles'])
+        : <Map>[
+            {'n': 'Study', 't': 'tracker', 'd': m},
+            {'n': 'Prayer', 't': 'prayer', 'd': {'faith': m['faith'], 'prayers': m['prayers'], 'pdone': m['pdone']}},
+            {'n': 'Other', 't': 'tracker', 'd': {}},
+          ];
+    if (ps.isEmpty) throw 'empty';
+    profiles = ps;
+    cur = ((m['cur'] ?? 0) as int).clamp(0, ps.length - 1).toInt();
+    dark = m['dark'] ?? false;
+    amoled = m['amoled'] ?? false;
+    seed = m['seed'] ?? seed;
+    tab = 0;
+    loadP(profiles[cur]['d'] ?? {});
+  }
+ 
+  bool apply(String j) {
+    final old = profiles.isEmpty ? null : json;
+    try {
+      _load(j);
+      return true;
+    } catch (_) {
+      if (old != null) {
+        try { _load(old); } catch (_) {}
+      }
+      return false;
+    }
+  }
+ 
+  void save({bool q = false}) {
+    p.setString('data', json);
+    if (!q) notifyListeners();
+  }
+ 
   void pick(String k) { sel = k; notifyListeners(); }
-
-  String faith = '';
-  List<Map> prayers = [];
-  Map pdone = {};
-
+  void goTab(int v) { tab = v; notifyListeners(); }
+ 
+  void switchTo(int i) {
+    profiles[cur]['d'] = pdata;
+    cur = i;
+    tab = 0;
+    loadP(profiles[cur]['d'] ?? {});
+    save();
+  }
+ 
+  void addProfile(String n, String t) {
+    profiles[cur]['d'] = pdata;
+    profiles.add({'n': n, 't': t, 'd': {}});
+    cur = profiles.length - 1;
+    tab = 0;
+    loadP({});
+    save();
+  }
+ 
+  void removeProfile(int i) {
+    profiles[cur]['d'] = pdata;
+    profiles.removeAt(i);
+    if (i < cur) cur--;
+    cur = cur.clamp(0, profiles.length - 1).toInt();
+    tab = 0;
+    loadP(profiles[cur]['d'] ?? {});
+    save();
+  }
+ 
+  void renameProfile(int i, String n) { profiles[i]['n'] = n; save(); }
+ 
   void setFaith(String f) {
     faith = f;
     prayers = [for (final n in faiths[f]!) {'n': n}];
     save();
   }
-
+ 
   bool pd(String d, String n) => ((pdone[d] as List?) ?? []).contains(n);
-
+ 
   void ptoggle(String d, String n) {
     final l = List.from((pdone[d] as List?) ?? []);
     if (l.contains(n)) { l.remove(n); } else { l.add(n); }
     pdone[d] = l;
     save();
   }
-
+ 
   int pcount(String d) => prayers.where((p) => pd(d, p['n'])).length;
-
-  Future<void> load() async {
-    p = await SharedPreferences.getInstance();
-    final j = p.getString('data');
-    if (j != null) apply(j);
-    if (subjects.isEmpty) {
-      subjects = [
-        {'n': 'Work', 'c': palette[0]},
-        {'n': 'Study', 'c': palette[1]},
-        {'n': 'Personal', 'c': palette[2]},
-      ];
-    }
-  }
-
-  String get json => jsonEncode({'subjects': subjects, 'tasks': tasks, 'logs': logs, 'notes': notes, 'goal': goal, 'exam': exam, 'examDate': examDate, 'dark': dark, 'amoled': amoled, 'seed': seed, 'mi': mi, 'cel': cel, 'modes': modes, 'faith': faith, 'prayers': prayers, 'pdone': pdone});
-
-  bool apply(String j) {
-    try {
-      final m = jsonDecode(j);
-      final s = List<Map>.from(m['subjects']), t = List<Map>.from(m['tasks']);
-      final l = Map.from(m['logs']), n = Map.from(m['notes']);
-      final g = (m['goal'] as num).toDouble().clamp(1.0, 12.0).toDouble();
-      final e = m['exam'] as String, ed = m['examDate'] as String, d = m['dark'] as bool;
-      if (s.isEmpty) return false;
-      subjects = s; tasks = t; logs = l; notes = n; goal = g; exam = e; examDate = ed; dark = d;
-      amoled = m['amoled'] ?? false; seed = m['seed'] ?? seed; cel = m['cel'] ?? '';
-      if (m['modes'] != null) modes = List<Map>.from(m['modes']);
-      mi = (m['mi'] ?? 0) % modes.length;
-      faith = m['faith'] ?? '';
-      if (m['prayers'] != null) prayers = List<Map>.from(m['prayers']);
-      pdone = m['pdone'] == null ? {} : Map.from(m['pdone']);
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  void save({bool q = false}) {
-    p.setString('data', json);
-    if (!q) notifyListeners();
-  }
-
+ 
   int minutes(String d) {
     final l = logs[d] as Map?;
     return l == null ? 0 : l.values.fold<int>(0, (a, b) => a + (b as num).toInt());
   }
-
+ 
   void addLog(String s, int m) {
     final l = logs.putIfAbsent(dk(DateTime.now()), () => {}) as Map;
     l[s] = (l[s] ?? 0) + m;
     save();
   }
-
+ 
   int get streak {
     var d = DateTime.now();
     if (minutes(dk(d)) == 0) d = d.subtract(const Duration(days: 1));
@@ -109,18 +182,18 @@ class Store extends ChangeNotifier {
     }
     return n;
   }
-
+ 
   Color col(String s) => Color(subjects.firstWhere((e) => e['n'] == s, orElse: () => {'c': 0xFF9E9E9E})['c']);
 }
-
+ 
 final st = Store();
-
+ 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await st.load();
   runApp(const App());
 }
-
+ 
 class App extends StatelessWidget {
   const App({super.key});
   @override
@@ -134,7 +207,7 @@ class App extends StatelessWidget {
         ),
       );
 }
-
+ 
 Future<String?> ask(BuildContext c, String title) {
   final t = TextEditingController();
   return showDialog<String>(
@@ -149,7 +222,7 @@ Future<String?> ask(BuildContext c, String title) {
     ),
   );
 }
-
+ 
 void addTask(BuildContext c) {
   final t = TextEditingController(), tm = TextEditingController();
   String s = st.subjects[0]['n'];
@@ -185,39 +258,127 @@ void addTask(BuildContext c) {
     ),
   );
 }
-
-class Home extends StatefulWidget {
-  const Home({super.key});
-  @override
-  State<Home> createState() => _HomeState();
+ 
+Future<bool> confirm(BuildContext c, String msg) async =>
+    await showDialog<bool>(
+      context: c,
+      builder: (d) => AlertDialog(
+        content: Text(msg),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Delete')),
+        ],
+      ),
+    ) ??
+    false;
+ 
+void addProfile(BuildContext c) {
+  final t = TextEditingController();
+  var type = 'tracker';
+  showDialog(
+    context: c,
+    builder: (d) => StatefulBuilder(
+      builder: (d, set) => AlertDialog(
+        title: const Text('New profile'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: t, autofocus: true, decoration: const InputDecoration(labelText: 'Name (e.g. Work, Gym)')),
+          const SizedBox(height: 12),
+          SegmentedButton<String>(
+            segments: const [ButtonSegment(value: 'tracker', label: Text('Tracker')), ButtonSegment(value: 'prayer', label: Text('Prayer'))],
+            selected: {type},
+            onSelectionChanged: (v) => set(() => type = v.first),
+          ),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () {
+              if (t.text.trim().isNotEmpty) st.addProfile(t.text.trim(), type);
+              Navigator.pop(d);
+            },
+            child: const Text('Create'),
+          ),
+        ],
+      ),
+    ),
+  );
 }
-
-class _HomeState extends State<Home> {
-  int i = 0;
+ 
+class AppDrawer extends StatelessWidget {
+  const AppDrawer({super.key});
   @override
-  Widget build(BuildContext c) => Scaffold(
-        body: SafeArea(child: IndexedStack(index: i, children: const [TodayPage(), TimerPage(), PrayerPage(), StatsPage(), SettingsPage()])),
-        floatingActionButton: i == 0 ? FloatingActionButton(onPressed: () => addTask(c), child: const Icon(Icons.add)) : null,
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: i,
-          onDestinationSelected: (v) => setState(() => i = v),
-          destinations: const [
-            NavigationDestination(icon: Icon(Icons.checklist), label: 'Today'),
-            NavigationDestination(icon: Icon(Icons.timer), label: 'Timer'),
-            NavigationDestination(icon: Icon(Icons.self_improvement), label: 'Prayer'),
-            NavigationDestination(icon: Icon(Icons.bar_chart), label: 'Stats'),
-            NavigationDestination(icon: Icon(Icons.settings), label: 'Settings'),
-          ],
+  Widget build(BuildContext c) => Drawer(
+        child: SafeArea(
+          child: ListenableBuilder(
+            listenable: st,
+            builder: (c, _) => ListView(children: [
+              const Padding(padding: EdgeInsets.all(16), child: Text('Profiles', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold))),
+              for (var i = 0; i < st.profiles.length; i++)
+                ListTile(
+                  leading: Icon(st.profiles[i]['t'] == 'prayer' ? Icons.self_improvement : Icons.checklist),
+                  title: Text(st.profiles[i]['n']),
+                  selected: i == st.cur,
+                  onTap: () { st.switchTo(i); Navigator.pop(c); },
+                  trailing: PopupMenuButton<String>(
+                    onSelected: (v) async {
+                      if (v == 'del') {
+                        if (st.profiles.length > 1 && await confirm(c, 'Delete "${st.profiles[i]['n']}" and all its data?')) st.removeProfile(i);
+                      } else {
+                        final n = await ask(c, 'New name');
+                        if (n != null && n.isNotEmpty) st.renameProfile(i, n);
+                      }
+                    },
+                    itemBuilder: (_) => const [PopupMenuItem(value: 'ren', child: Text('Rename')), PopupMenuItem(value: 'del', child: Text('Delete'))],
+                  ),
+                ),
+              const Divider(),
+              ListTile(leading: const Icon(Icons.add), title: const Text('Add profile'), onTap: () { Navigator.pop(c); addProfile(c); }),
+            ]),
+          ),
         ),
       );
 }
-
+ 
+class Home extends StatelessWidget {
+  const Home({super.key});
+  @override
+  Widget build(BuildContext c) => ListenableBuilder(
+        listenable: st,
+        builder: (c, _) {
+          final tr = st.tracker;
+          final List<Widget> pages = tr ? const [TodayPage(), TimerPage(), StatsPage(), SettingsPage()] : const [PrayerPage(), SettingsPage()];
+          final idx = st.tab >= pages.length ? 0 : st.tab;
+          return Scaffold(
+            appBar: AppBar(title: Text(st.pname)),
+            drawer: const AppDrawer(),
+            body: SafeArea(child: IndexedStack(key: ValueKey(st.cur), index: idx, children: pages)),
+            floatingActionButton: tr && idx == 0 ? FloatingActionButton(onPressed: () => addTask(c), child: const Icon(Icons.add)) : null,
+            bottomNavigationBar: NavigationBar(
+              selectedIndex: idx,
+              onDestinationSelected: st.goTab,
+              destinations: tr
+                  ? const [
+                      NavigationDestination(icon: Icon(Icons.checklist), label: 'Today'),
+                      NavigationDestination(icon: Icon(Icons.timer), label: 'Timer'),
+                      NavigationDestination(icon: Icon(Icons.bar_chart), label: 'Stats'),
+                      NavigationDestination(icon: Icon(Icons.settings), label: 'Settings'),
+                    ]
+                  : const [
+                      NavigationDestination(icon: Icon(Icons.self_improvement), label: 'Prayer'),
+                      NavigationDestination(icon: Icon(Icons.settings), label: 'Settings'),
+                    ],
+            ),
+          );
+        },
+      );
+}
+ 
 class Confetti extends StatefulWidget {
   const Confetti({super.key});
   @override
   State<Confetti> createState() => _CF();
 }
-
+ 
 class _CF extends State<Confetti> with SingleTickerProviderStateMixin {
   late final AnimationController a = AnimationController(vsync: this, duration: const Duration(seconds: 3))..forward();
   final r = Random();
@@ -227,7 +388,7 @@ class _CF extends State<Confetti> with SingleTickerProviderStateMixin {
   @override
   Widget build(BuildContext c) => IgnorePointer(child: AnimatedBuilder(animation: a, builder: (_, __) => CustomPaint(size: Size.infinite, painter: _CP(ps, a.value))));
 }
-
+ 
 class _CP extends CustomPainter {
   final List ps;
   final double t;
@@ -242,10 +403,10 @@ class _CP extends CustomPainter {
   @override
   bool shouldRepaint(_CP o) => true;
 }
-
+ 
 class TodayPage extends StatelessWidget {
   const TodayPage({super.key});
-
+ 
   Widget tile(Map e) => Dismissible(
         key: ObjectKey(e),
         background: Container(color: Colors.green, alignment: Alignment.centerLeft, padding: const EdgeInsets.only(left: 20), child: const Icon(Icons.check, color: Colors.white)),
@@ -272,9 +433,9 @@ class TodayPage extends StatelessWidget {
           ),
         ),
       );
-
+ 
   Widget head(String s) => Padding(padding: const EdgeInsets.fromLTRB(4, 16, 4, 4), child: Text(s, style: const TextStyle(fontWeight: FontWeight.bold)));
-
+ 
   @override
   Widget build(BuildContext c) => ListenableBuilder(
         listenable: st,
@@ -355,13 +516,13 @@ class TodayPage extends StatelessWidget {
         },
       );
 }
-
+ 
 class TimerPage extends StatefulWidget {
   const TimerPage({super.key});
   @override
   State<TimerPage> createState() => _TP();
 }
-
+ 
 class _TP extends State<TimerPage> {
   String? sub;
   bool brk = false, run = false;
@@ -371,7 +532,7 @@ class _TP extends State<TimerPage> {
   int get total => ((brk ? md['b'] : md['f']) as int) * 60;
   late int left = total;
   String get who => st.subjects.any((e) => e['n'] == sub) ? sub! : st.subjects[0]['n'];
-
+ 
   void tick(Timer _) {
     setState(() => left--);
     if (left <= 0) {
@@ -381,25 +542,25 @@ class _TP extends State<TimerPage> {
       setState(() { brk = !brk; left = total; });
     }
   }
-
+ 
   void stop() { t?.cancel(); run = false; }
-
+ 
   void toggle() {
     if (run) { stop(); } else { run = true; t = Timer.periodic(const Duration(seconds: 1), tick); }
     setState(() {});
   }
-
+ 
   void reset() {
     final el = total - left;
     if (!brk && el >= 60) st.addLog(who, el ~/ 60);
     stop();
     setState(() => left = total);
   }
-
+ 
   void swap() { stop(); setState(() { brk = !brk; left = total; }); }
-
+ 
   void pick(int i) { stop(); st.mi = i; st.save(q: true); setState(() { brk = false; left = total; }); }
-
+ 
   void addMode() {
     final n = TextEditingController(), f = TextEditingController(text: '30'), b = TextEditingController(text: '5');
     showDialog(
@@ -428,10 +589,10 @@ class _TP extends State<TimerPage> {
       ),
     );
   }
-
+ 
   @override
   void dispose() { t?.cancel(); super.dispose(); }
-
+ 
   @override
   Widget build(BuildContext c) => ListenableBuilder(
         listenable: st,
@@ -479,7 +640,7 @@ class _TP extends State<TimerPage> {
         },
       );
 }
-
+ 
 class StatsPage extends StatelessWidget {
   const StatsPage({super.key});
   @override
@@ -559,7 +720,7 @@ class StatsPage extends StatelessWidget {
         },
       );
 }
-
+ 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
   @override
@@ -578,6 +739,7 @@ class SettingsPage extends StatelessWidget {
                 ),
             ]),
           ),
+          if (st.tracker) ...[
           ListTile(
             title: Text('Daily goal: ${st.goal} h'),
             subtitle: Slider(min: 1, max: 12, divisions: 22, value: st.goal, onChanged: (v) { st.goal = v; st.save(); }),
@@ -595,6 +757,7 @@ class SettingsPage extends StatelessWidget {
               st.save();
             },
           ),
+          ],
           ListTile(
             leading: const Icon(Icons.upload),
             title: const Text('Backup (copy data)'),
@@ -616,6 +779,7 @@ class SettingsPage extends StatelessWidget {
               if (c.mounted) ScaffoldMessenger.of(c).showSnackBar(SnackBar(content: Text(ok ? 'Restored!' : 'Invalid backup text')));
             },
           ),
+          if (st.tracker) ...[
           const Divider(),
           for (final m in st.modes)
             ListTile(
@@ -647,10 +811,11 @@ class SettingsPage extends StatelessWidget {
               st.save();
             },
           ),
+          ],
         ]),
       );
 }
-
+ 
 const Map<String, List<String>> faiths = {
   'Islam': ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'],
   'Hinduism': ['Morning Puja', 'Noon Sandhya', 'Evening Aarti'],
@@ -659,7 +824,7 @@ const Map<String, List<String>> faiths = {
   'Sikhism': ['Morning Nitnem', 'Rehras Sahib', 'Kirtan Sohila'],
   'Other (add my own)': [],
 };
-
+ 
 class PrayerPage extends StatelessWidget {
   const PrayerPage({super.key});
   @override
@@ -736,3 +901,5 @@ class PrayerPage extends StatelessWidget {
         },
       );
 }
+ 
+Claude finished the response
