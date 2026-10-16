@@ -32,9 +32,9 @@ class Store extends ChangeNotifier {
     if (j != null) apply(j);
     if (subjects.isEmpty) {
       subjects = [
-        {'n': 'Math', 'c': palette[0]},
-        {'n': 'English', 'c': palette[1]},
-        {'n': 'Science', 'c': palette[2]},
+        {'n': 'Work', 'c': palette[0]},
+        {'n': 'Study', 'c': palette[1]},
+        {'n': 'Personal', 'c': palette[2]},
       ];
     }
   }
@@ -103,7 +103,7 @@ class App extends StatelessWidget {
   Widget build(BuildContext c) => ListenableBuilder(
         listenable: st,
         builder: (_, __) => MaterialApp(
-          title: 'Study Planner',
+          title: 'Daily Tracker',
           debugShowCheckedModeBanner: false,
           theme: ThemeData(colorSchemeSeed: Color(st.seed), useMaterial3: true, brightness: st.dark ? Brightness.dark : Brightness.light, scaffoldBackgroundColor: st.dark && st.amoled ? Colors.black : null),
           home: const Home(),
@@ -320,7 +320,7 @@ class TodayPage extends StatelessWidget {
                 key: ValueKey(sel),
                 initialValue: st.notes[sel] ?? '',
                 maxLines: 3,
-                decoration: const InputDecoration(labelText: 'Reflection (ki bujhlam, ki baki)', border: OutlineInputBorder()),
+                decoration: const InputDecoration(labelText: 'Reflection (ki korlam, ki baki)', border: OutlineInputBorder()),
                 onChanged: (v) { st.notes[sel] = v; st.save(q: true); },
               ),
               const SizedBox(height: 80),
@@ -422,7 +422,7 @@ class _TP extends State<TimerPage> {
             const SizedBox(height: 12),
             DropdownButton<String>(
               isExpanded: true,
-              hint: const Text('Select subject'),
+              hint: const Text('Select category'),
               value: st.subjects.any((e) => e['n'] == sub) ? sub : null,
               items: [for (final e in st.subjects) DropdownMenuItem<String>(value: e['n'], child: Text(e['n']))],
               onChanged: (v) => setState(() => sub = v),
@@ -614,9 +614,9 @@ class SettingsPage extends StatelessWidget {
             ),
           TextButton.icon(
             icon: const Icon(Icons.add),
-            label: const Text('Add subject'),
+            label: const Text('Add category'),
             onPressed: () async {
-              final n = await ask(c, 'Subject name');
+              final n = await ask(c, 'Category name');
               if (n == null || n.isEmpty) return;
               st.subjects.add({'n': n, 'c': palette[st.subjects.length % palette.length]});
               st.save();
