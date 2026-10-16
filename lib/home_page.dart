@@ -132,7 +132,6 @@ class HomeDashboardPage extends StatelessWidget {
                   progress: study == null ? null : focusProgress,
                   actionLabel: 'Open study plan',
                   onTap: () => openTracker(1),
-                  action: () => openTracker(1),
                 ),
                 const SizedBox(height: 10),
                 _sectionCard(
@@ -147,7 +146,6 @@ class HomeDashboardPage extends StatelessWidget {
                   progress: prayer == null || prayerItems.isEmpty ? null : prayerDone / prayerItems.length,
                   actionLabel: 'Open prayer routine',
                   onTap: openPrayer,
-                  action: openPrayer,
                 ),
                 const SizedBox(height: 10),
                 _sectionCard(
@@ -162,7 +160,6 @@ class HomeDashboardPage extends StatelessWidget {
                   progress: null,
                   actionLabel: 'Manage students & attendance',
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TuitionHome())),
-                  action: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TuitionHome())),
                 ),
                 const SizedBox(height: 20),
                 Text('Quick actions', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
@@ -228,7 +225,6 @@ class HomeDashboardPage extends StatelessWidget {
     required double? progress,
     required String actionLabel,
     required VoidCallback onTap,
-    required VoidCallback action,
   }) {
     final cs = Theme.of(context).colorScheme;
     return Card(
@@ -254,7 +250,7 @@ class HomeDashboardPage extends StatelessWidget {
             ]),
             if (progress != null) ...[
               const SizedBox(height: 12),
-              ClipRRect(borderRadius: BorderRadius.circular(99), child: LinearProgressIndicator(value: progress.clamp(0.0, 1.0), minHeight: 6, backgroundColor: color.withOpacity(.12), color: color)),
+              ClipRRect(borderRadius: BorderRadius.circular(99), child: LinearProgressIndicator(value: progress.clamp(0.0, 1.0).toDouble(), minHeight: 6, backgroundColor: color.withOpacity(.12), color: color)),
             ],
             const SizedBox(height: 11),
             Row(mainAxisAlignment: MainAxisAlignment.end, children: [
@@ -269,7 +265,6 @@ class HomeDashboardPage extends StatelessWidget {
   }
 
   Widget _quickAction(BuildContext context, IconData icon, String label, VoidCallback onTap) {
-    final cs = Theme.of(context).colorScheme;
     return OutlinedButton(
       onPressed: onTap,
       style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
