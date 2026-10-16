@@ -112,11 +112,11 @@ class TodayPage extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   child: Row(children: [
-                    Expanded(child: _quickMetric(Icons.check_circle_outline_rounded, '\${dn}/\${todays.length}', 'Tasks done', cs.primary)),
+                    Expanded(child: _quickMetric(Icons.check_circle_outline_rounded, '${dn}/${todays.length}', 'Tasks done', cs.primary)),
                     Container(width: 1, height: 38, color: cs.outlineVariant),
-                    Expanded(child: _quickMetric(Icons.pending_actions_rounded, '\${todays.length - dn}', 'Remaining', cs.tertiary)),
+                    Expanded(child: _quickMetric(Icons.pending_actions_rounded, '${todays.length - dn}', 'Remaining', cs.tertiary)),
                     Container(width: 1, height: 38, color: cs.outlineVariant),
-                    Expanded(child: _quickMetric(Icons.bolt_rounded, '\${(v * 100).round()}%', 'Focus goal', cs.secondary)),
+                    Expanded(child: _quickMetric(Icons.bolt_rounded, '${(v * 100).round()}%', 'Focus goal', cs.secondary)),
                   ]),
                 ),
               ),
