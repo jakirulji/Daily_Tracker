@@ -15,6 +15,45 @@ jobs:
       - run: flutter create . --project-name study_planner --platforms=android
       - run: flutter pub get
       - run: sed -i 's/android:label="[^"]*"/android:label="Daily Tracker"/' android/app/src/main/AndroidManifest.xml
+      - name: Patch Android for notifications
+        run: |
+          python3 - <<'EOF'
+          mp = 'android/app/src/main/AndroidManifest.xml'
+          m = open(mp, encoding='utf-8').read()
+          perms = "\n".join([
+              '    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>',
+              '    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>',
+              '    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>',
+              '    <uses-permission android:name="android.permission.VIBRATE"/>',
+              '    ',
+          ])
+          receivers = "\n".join([
+              '',
+              '        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />',
+              '        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">',
+              '            <intent-filter>',
+              '                <action android:name="android.intent.action.BOOT_COMPLETED"/>',
+              '                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>',
+              '                <action android:name="android.intent.action.QUICKBOOT_POWERON"/>',
+              '                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>',
+              '            </intent-filter>',
+              '        </receiver>',
+              '    ',
+          ])
+          if 'POST_NOTIFICATIONS' not in m:
+              m = m.replace('<application', perms + '<application', 1)
+              m = m.replace('</application>', receivers + '</application>', 1)
+          open(mp, 'w', encoding='utf-8').write(m)
+
+          gp = 'android/app/build.gradle.kts'
+          g = open(gp, encoding='utf-8').read()
+          if 'isCoreLibraryDesugaringEnabled' not in g:
+              assert 'compileOptions {' in g
+              g = g.replace('compileOptions {', 'compileOptions {\n        isCoreLibraryDesugaringEnabled = true', 1)
+              g += '\ndependencies {\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")\n}\n'
+          open(gp, 'w', encoding='utf-8').write(g)
+          print('patched manifest and gradle')
+          EOF
       - name: Setup signing
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
