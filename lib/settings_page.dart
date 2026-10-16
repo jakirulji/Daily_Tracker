@@ -8,6 +8,7 @@ import 'package:file_picker/file_picker.dart';
 import 'store.dart';
 import 'notify.dart';
 import 'ui.dart';
+import 'exam_page.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -61,17 +62,11 @@ class SettingsPage extends StatelessWidget {
               subtitle: Slider(min: 1, max: 12, divisions: 22, value: st.goal, onChanged: (v) { st.goal = v; st.save(); }),
             ),
             ListTile(
-              title: Text(st.exam == '' ? 'Set exam countdown' : '${st.exam} – ${st.examDate}'),
-              trailing: const Icon(Icons.edit_calendar),
-              onTap: () async {
-                final n = await ask(c, 'Exam name');
-                if (n == null || n.isEmpty || !c.mounted) return;
-                final d = await showDatePicker(context: c, initialDate: DateTime.now().add(const Duration(days: 30)), firstDate: DateTime.now(), lastDate: DateTime(2100));
-                if (d == null) return;
-                st.exam = n;
-                st.examDate = dk(d);
-                st.save();
-              },
+              leading: const Icon(Icons.event_note_rounded),
+              title: const Text('Exam Tracker'),
+              subtitle: const Text('Exam routine, syllabus, countdown & reminders'),
+              trailing: const Icon(Icons.arrow_forward_rounded),
+              onTap: () => Navigator.push(c, MaterialPageRoute(builder: (_) => const ExamPage())),
             ),
           ],
           const Divider(),
