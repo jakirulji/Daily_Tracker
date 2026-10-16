@@ -9,11 +9,14 @@ class ExamPage extends StatefulWidget {
 }
 
 class _ExamPageState extends State<ExamPage> {
-  List<Map> get exams {
+  @override
+  void initState() {
+    super.initState();
     final i = st.profiles.indexWhere((p) => p['t'] != 'prayer');
-    return i < 0 ? [] : List<Map>.from(st.dataOf(i)['exams'] ?? [])
-      ..sort((a, b) => (a['date'] as String? ?? '').compareTo(b['date'] as String? ?? ''));
+    if (i >= 0 && st.cur != i) st.switchTo(i);
   }
+
+  List<Map> get exams => st.exams..sort((a, b) => (a['date'] as String? ?? '').compareTo(b['date'] as String? ?? ''));
 
   int days(String value) {
     final d = DateTime.tryParse(value);
@@ -27,19 +30,7 @@ class _ExamPageState extends State<ExamPage> {
     return d == null ? value : d.day.toString().padLeft(2,'0') + '/' + d.month.toString().padLeft(2,'0') + '/' + d.year.toString();
   }
 
-  void save() {
-    final i = st.profiles.indexWhere((p) => p['t'] != 'prayer');
-    if (i < 0) { snack(context, 'Create a study profile first.'); return; }
-    final data = Map<String,dynamic>.from(st.dataOf(i));
-    data['exams'] = exams;
-    st.profiles[i]['d'] = data;
-    if (st.cur != i) {
-      st.profiles[st.cur]['d'] = st.pdata;
-      st.cur = i;
-      st.loadP(data);
-    }
-    st.save();
-  }
+  void save() { st.save(); }
 
   Future<void> addExam({Map? old}) async {
     final title = TextEditingController(text: old?['title'] ?? '');
