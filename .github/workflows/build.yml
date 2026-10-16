@@ -14,20 +14,24 @@ jobs:
           channel: stable
       - run: flutter create . --project-name study_planner --platforms=android
       - run: flutter pub get
+      - name: Generate Android launcher icons
+        run: |
+          test -f assets/app_icon.png || (echo "Missing assets/app_icon.png. Upload the Daily Tracker logo to this path." && exit 1)
+          dart run flutter_launcher_icons
       - run: sed -i 's/android:label="[^"]*"/android:label="Daily Tracker"/' android/app/src/main/AndroidManifest.xml
       - name: Patch Android for notifications
         run: |
           python3 - <<'EOF'
           mp = 'android/app/src/main/AndroidManifest.xml'
           m = open(mp, encoding='utf-8').read()
-          perms = "\n".join([
+          perms = "\\n".join([
               '    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>',
               '    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>',
               '    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>',
               '    <uses-permission android:name="android.permission.VIBRATE"/>',
               '    ',
           ])
-          receivers = "\n".join([
+          receivers = "\\n".join([
               '',
               '        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />',
               '        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">',
@@ -49,8 +53,8 @@ jobs:
           g = open(gp, encoding='utf-8').read()
           if 'isCoreLibraryDesugaringEnabled' not in g:
               assert 'compileOptions {' in g
-              g = g.replace('compileOptions {', 'compileOptions {\n        isCoreLibraryDesugaringEnabled = true', 1)
-              g += '\ndependencies {\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")\n}\n'
+              g = g.replace('compileOptions {', 'compileOptions {\\n        isCoreLibraryDesugaringEnabled = true', 1)
+              g += '\\ndependencies {\\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")\\n}\\n'
           open(gp, 'w', encoding='utf-8').write(g)
           print('patched manifest and gradle')
           EOF
@@ -62,7 +66,7 @@ jobs:
           python3 - <<'EOF'
           p = 'android/app/build.gradle.kts'
           s = open(p).read()
-          block = "\n".join([
+          block = "\\n".join([
               '    signingConfigs {',
               '        create("release") {',
               '            storeFile = file("upload-keystore.jks")',
