@@ -901,5 +901,3 @@ class PrayerPage extends StatelessWidget {
         },
       );
 }
- 
-Claude finished the response
