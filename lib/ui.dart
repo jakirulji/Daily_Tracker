@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'store.dart';
+import 'tuition.dart';
 
 void snack(BuildContext c, String m) => ScaffoldMessenger.of(c).showSnackBar(SnackBar(content: Text(m)));
 
@@ -174,6 +175,17 @@ class AppDrawer extends StatelessWidget {
                     itemBuilder: (_) => const [PopupMenuItem(value: 'ren', child: Text('Rename')), PopupMenuItem(value: 'del', child: Text('Delete'))],
                   ),
                 ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.school),
+                title: const Text('Tuition Tracker'),
+                subtitle: const Text('Students, attendance & salary'),
+                onTap: () {
+                  final nav = Navigator.of(c);
+                  nav.pop();
+                  nav.push(MaterialPageRoute(builder: (_) => const TuitionHome()));
+                },
+              ),
               const Divider(),
               ListTile(leading: const Icon(Icons.add), title: const Text('Add profile'), onTap: () { Navigator.pop(c); addProfile(c); }),
             ]),

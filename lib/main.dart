@@ -7,11 +7,13 @@ import 'timer_page.dart';
 import 'stats_page.dart';
 import 'settings_page.dart';
 import 'prayer_page.dart';
+import 'tuition.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Notif.init();
   await st.load();
+  await tst.load();
   runApp(const App());
   Notif.rescheduleAll(st);
 }
