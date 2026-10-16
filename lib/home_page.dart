@@ -57,7 +57,18 @@ class HomeDashboardPage extends StatelessWidget {
             final trackerIndex = st.profiles.indexWhere((p) => p['t'] != 'prayer');
             final examProfile = trackerIndex;
             final examData = examProfile < 0 ? <Map>[] : List<Map>.from(st.dataOf(examProfile)['exams'] ?? []);
-            final upcomingExams = examData.where((e) { final d = DateTime.tryParse('${e['date'] ?? ''}'); return d != null && !d.isBefore(DateTime(now.year, now.month, now.day)) && e['done'] != true; }).toList()..sort((a,b) => (a['date'] as String).compareTo(b['date'] as String));
+            final todayDate = DateTime(now.year, now.month, now.day);
+            DateTime? nextDateFor(Map group) {
+              final subjects = List<Map>.from(group['subjects'] ?? []);
+              final dates = subjects.map((s) => DateTime.tryParse((s['date'] ?? group['endDate'] ?? group['date'] ?? '').toString())).whereType<DateTime>().where((d) => !DateTime(d.year,d.month,d.day).isBefore(todayDate)).toList()..sort();
+              if (dates.isNotEmpty) return dates.first;
+              return DateTime.tryParse((group['endDate'] ?? group['date'] ?? '').toString());
+            }
+            final upcomingExams = examData.where((e) {
+              if (e['done'] == true) return false;
+              final d = nextDateFor(e);
+              return d != null && !DateTime(d.year,d.month,d.day).isBefore(todayDate);
+            }).toList()..sort((a,b) => nextDateFor(a)!.compareTo(nextDateFor(b)!));
             final nextExam = upcomingExams.isEmpty ? null : upcomingExams.first;
             final prayerIndex = st.profiles.indexWhere((p) => p['t'] == 'prayer');
 
@@ -215,9 +226,12 @@ class HomeDashboardPage extends StatelessWidget {
   Widget _examHighlight(BuildContext context, Map? exam, VoidCallback onTap) {
     final cs = Theme.of(context).colorScheme;
     final now = DateTime.now();
-    final date = exam == null ? null : DateTime.tryParse('${exam['date']}');
-    final days = date == null ? null : DateTime(date.year, date.month, date.day).difference(DateTime(now.year, now.month, now.day)).inDays;
     final subjects = List<Map>.from(exam?['subjects'] ?? []);
+    final groupDate = exam == null ? null : DateTime.tryParse('${exam['endDate'] ?? exam['date'] ?? ''}');
+    final todayDate = DateTime(now.year, now.month, now.day);
+    final subjectDates = subjects.map((s) => DateTime.tryParse((s['date'] ?? exam?['endDate'] ?? exam?['date'] ?? '').toString())).whereType<DateTime>().where((d) => !DateTime(d.year,d.month,d.day).isBefore(todayDate)).toList()..sort();
+    final date = subjectDates.isNotEmpty ? subjectDates.first : groupDate;
+    final days = date == null ? null : DateTime(date.year, date.month, date.day).difference(todayDate).inDays;
     final topics = subjects.fold<int>(0, (sum, s) => sum + List<Map>.from(s['topics'] ?? []).length);
     final done = subjects.fold<int>(0, (sum, s) => sum + List<Map>.from(s['topics'] ?? []).where((t) => t['done'] == true).length);
     return Card(
@@ -231,15 +245,15 @@ class HomeDashboardPage extends StatelessWidget {
             if (exam != null) Text(days == 0 ? 'TODAY' : days == 1 ? 'TOMORROW' : '$days DAYS LEFT', style: TextStyle(color: cs.onTertiaryContainer, fontWeight: FontWeight.w900, fontSize: 12)),
           ]),
           const SizedBox(height: 12),
-          Text(exam == null ? 'Your next exam starts here' : '${exam['title']}', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: cs.onTertiaryContainer)),
+          Text(exam == null ? 'Your next exam group' : '${exam['title']}', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: cs.onTertiaryContainer)),
           const SizedBox(height: 5),
-          Text(exam == null ? 'Add your exam routine, subjects and syllabus to keep preparation on track.' : '${date!.day.toString().padLeft(2,'0')}/${date.month.toString().padLeft(2,'0')}/${date.year}  •  ${subjects.length} subject(s)', style: TextStyle(color: cs.onTertiaryContainer.withOpacity(.85), fontSize: 12)),
+          Text(exam == null ? 'Add an exam group and track each subject inside Exam Count.' : '${date == null ? 'Date not set' : date.day.toString().padLeft(2,'0') + '/' + date.month.toString().padLeft(2,'0') + '/' + date.year}  •  ${subjects.length} subject(s)', style: TextStyle(color: cs.onTertiaryContainer.withOpacity(.85), fontSize: 12)),
           if (exam != null) ...[
             const SizedBox(height: 13),
             Row(children: [Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(99), child: LinearProgressIndicator(value: topics == 0 ? 0 : done / topics, minHeight: 7, backgroundColor: cs.onTertiaryContainer.withOpacity(.12), color: cs.tertiary))), const SizedBox(width: 10), Text('$done/$topics topics', style: TextStyle(color: cs.onTertiaryContainer, fontWeight: FontWeight.w800, fontSize: 11))]),
           ],
           const SizedBox(height: 12),
-          Row(mainAxisAlignment: MainAxisAlignment.end, children: [Text(exam == null ? 'Add first exam' : 'Open exam tracker', style: TextStyle(color: cs.onTertiaryContainer, fontWeight: FontWeight.w800)), const SizedBox(width: 5), Icon(Icons.arrow_forward_rounded, color: cs.onTertiaryContainer, size: 18)]),
+          Row(mainAxisAlignment: MainAxisAlignment.end, children: [Text(exam == null ? 'Add exam group' : 'Open Exam Count for details', style: TextStyle(color: cs.onTertiaryContainer, fontWeight: FontWeight.w800)), const SizedBox(width: 5), Icon(Icons.arrow_forward_rounded, color: cs.onTertiaryContainer, size: 18)]),
         ]),
       )),
     );
