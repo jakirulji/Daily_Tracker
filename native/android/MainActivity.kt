@@ -1,6 +1,7 @@
 package com.example.study_planner
 
 import android.content.Intent
+import android.net.Uri
 import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -11,6 +12,28 @@ import io.flutter.plugin.common.MethodChannel
  * Exposes the "attention" channel used by lib/attention.dart.
  */
 class MainActivity : FlutterActivity() {
+    /**
+     * Opens the "Do Not Disturb access" screen. Some phones do not resolve the standard
+     * intent, so fall back step by step. Returns "ok", "fallbackN" or "failed".
+     */
+    private fun openAccess(): String {
+        val tries = listOf(
+            Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS),
+            Intent("android.settings.ZEN_MODE_PRIORITY_SETTINGS"),
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")),
+            Intent(Settings.ACTION_SETTINGS)
+        )
+        for ((n, intent) in tries.withIndex()) {
+            try {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(intent)
+                return if (n == 0) "ok" else "fallback$n"
+            } catch (e: Exception) {
+            }
+        }
+        return "failed"
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "attention")
@@ -18,12 +41,7 @@ class MainActivity : FlutterActivity() {
                 try {
                     when (call.method) {
                         "hasAccess" -> result.success(AttentionCore.hasAccess(this))
-                        "openAccessSettings" -> {
-                            val i = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
-                            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            startActivity(i)
-                            result.success(true)
-                        }
+                        "openAccessSettings" -> result.success(openAccess())
                         "status" -> result.success(AttentionCore.status(this))
                         "enable" -> {
                             val by = call.argument<String>("by") ?: "manual"

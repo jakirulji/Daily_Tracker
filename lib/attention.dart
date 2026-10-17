@@ -31,10 +31,15 @@ class Attention extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> openAccessSettings() async {
+  /// Returns "ok", "fallbackN", "failed", or "missing" (native part not in this build).
+  Future<String> openAccessSettings() async {
     try {
-      await _ch.invokeMethod('openAccessSettings');
-    } catch (_) {}
+      return (await _ch.invokeMethod('openAccessSettings')).toString();
+    } on MissingPluginException {
+      return 'missing';
+    } catch (_) {
+      return 'failed';
+    }
   }
 
   /// Returns false if DND access has not been granted.
@@ -69,6 +74,23 @@ class Attention extends ChangeNotifier {
 
 final att = Attention();
 
+/// Opens the DND access screen; if it cannot open the exact page, tells the user how to find it.
+Future<void> openDndAccess(BuildContext c) async {
+  final r = await att.openAccessSettings();
+  if (r == 'ok' || !c.mounted) return;
+  final msg = r == 'missing'
+      ? 'The Attention mode part is missing from this build.\n\nMake sure the native/ folder and the updated .github/workflows/build.yml are uploaded, run Build APK again, and reinstall.'
+      : 'Could not open that exact screen on this phone.\n\nOpen phone Settings and search for "Do Not Disturb access" (or Apps > Special app access > Do Not Disturb access), then switch on Daily Tracker.';
+  await showDialog(
+    context: c,
+    builder: (d) => AlertDialog(
+      title: const Text('Open it manually'),
+      content: Text(msg),
+      actions: [TextButton(onPressed: () => Navigator.pop(d), child: const Text('OK'))],
+    ),
+  );
+}
+
 /// Grants DND access if needed, then asks how long, then turns the mode on.
 Future<void> startAttention(BuildContext c) async {
   if (!att.access) {
@@ -84,7 +106,7 @@ Future<void> startAttention(BuildContext c) async {
         ],
       ),
     );
-    if (go == true) await att.openAccessSettings();
+    if (go == true && c.mounted) await openDndAccess(c);
     return;
   }
   final mins = await _askMinutes(c);
@@ -253,7 +275,7 @@ class _AS extends State<AttentionSettings> with WidgetsBindingObserver {
             leading: Icon(att.access ? Icons.check_circle_outline : Icons.lock_open_outlined),
             title: const Text('Do Not Disturb access'),
             subtitle: Text(att.access ? 'Granted' : 'Not granted. Tap to allow (needed for Attention mode)'),
-            onTap: att.access ? null : att.openAccessSettings,
+            onTap: att.access ? null : () => openDndAccess(c),
           ),
           SwitchListTile(
             secondary: const Icon(Icons.timer_outlined),
