@@ -12,19 +12,19 @@ import 'settings_page.dart';
 import 'prayer_page.dart';
 import 'tuition.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Saved data is read before the first frame (fast). The Store also has safe defaults,
+  // so even if this fails or times out the app still opens.
+  try {
+    await st.load().timeout(const Duration(seconds: 5));
+  } catch (_) {}
   runApp(const App());
   unawaited(_initializeApp());
 }
 
 Future<void> _initializeApp() async {
   // Never hold the native splash screen while plugins or local storage initialize.
-  try {
-    await st.load().timeout(const Duration(seconds: 8));
-  } catch (_) {
-    // Store starts with usable defaults; keep the app accessible if storage fails.
-  }
   try {
     await tst.load().timeout(const Duration(seconds: 8));
   } catch (_) {
@@ -33,11 +33,11 @@ Future<void> _initializeApp() async {
 
   try {
     await Notif.init().timeout(const Duration(seconds: 8));
-    await Notif.askPermission();
   } catch (_) {
     // Notifications are optional; the app must still open without them.
   }
 
+  unawaited(Notif.askPermission());
   try {
     await ExamWidgetSync.update().timeout(const Duration(seconds: 5));
   } catch (_) {}
