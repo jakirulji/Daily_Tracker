@@ -76,6 +76,7 @@ class Store extends ChangeNotifier {
   String exam = '', examDate = '', cel = '', faith = '', sel = dk(DateTime.now());
   bool dark = false, amoled = false;
   String themeStyle = 'premium';
+  String themeMode = 'system';
   int seed = 0xFF5C6BC0, mi = 0, cur = 0, tab = 0;
   Timer? _rs;
   Future<void> _saveQueue = Future<void>.value();
@@ -128,7 +129,7 @@ class Store extends ChangeNotifier {
 
   String get json {
     profiles[cur]['d'] = pdata;
-    return jsonEncode({'profiles': profiles, 'cur': cur, 'dark': dark, 'amoled': amoled, 'seed': seed, 'themeStyle': themeStyle});
+    return jsonEncode({'profiles': profiles, 'cur': cur, 'dark': dark, 'amoled': amoled, 'seed': seed, 'themeStyle': themeStyle, 'themeMode': themeMode});
   }
 
   void _load(String j) {
@@ -148,6 +149,11 @@ class Store extends ChangeNotifier {
     seed = m['seed'] ?? seed;
     final savedStyle = m['themeStyle'];
     themeStyle = ['premium', 'colorful', 'glass'].contains(savedStyle) ? savedStyle as String : 'premium';
+    final savedMode = m['themeMode'];
+    // Older backups only stored the dark-mode boolean; preserve that preference.
+    themeMode = ['system', 'light', 'dark'].contains(savedMode)
+        ? savedMode as String
+        : (dark ? 'dark' : 'light');
     tab = 0;
     loadP(profiles[cur]['d'] ?? {});
   }
