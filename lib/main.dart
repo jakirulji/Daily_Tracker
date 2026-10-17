@@ -83,7 +83,7 @@ ThemeData _buildAppTheme({required bool dark, required bool amoled, required Str
       centerTitle: false,
       titleTextStyle: TextStyle(color: scheme.onSurface, fontSize: 21, fontWeight: FontWeight.w700),
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       color: dark ? scheme.surface : Colors.white,
       elevation: style == 'glass' ? 1 : 0,
       shadowColor: scheme.primary.withOpacity(0.08),
