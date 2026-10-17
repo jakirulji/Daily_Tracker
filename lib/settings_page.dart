@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:file_picker/file_picker.dart';
 import 'store.dart';
+import 'persist.dart';
 import 'notify.dart';
 import 'ui.dart';
 import 'exam_page.dart';
@@ -91,6 +92,12 @@ class SettingsPage extends StatelessWidget {
             title: const Text('Import backup file'),
             subtitle: const Text('Pick a .json backup (replaces current data)'),
             onTap: () => importFile(c),
+          ),
+          ListTile(
+            leading: const Icon(Icons.storage_outlined),
+            title: const Text('Storage status'),
+            subtitle: const Text('Check that your data is being saved on this phone'),
+            onTap: () => showStorageStatus(c),
           ),
           ListTile(
             leading: const Icon(Icons.upload),

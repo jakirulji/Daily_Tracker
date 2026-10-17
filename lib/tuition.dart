@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
+import 'persist.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -109,12 +110,13 @@ class TStore extends ChangeNotifier {
   Map? get cur => students.isEmpty ? null : students[sel.clamp(0, students.length - 1).toInt()];
 
   Future<void> load() async {
-    _p = await SharedPreferences.getInstance();
-    final j = _p!.getString('tuition_data');
+    final j = await Persist.read('tuition_data');
     if (j != null) {
       try {
         apply(j);
-      } catch (_) {}
+      } catch (_) {
+        await Persist.keepBad('tuition_data', j);
+      }
     }
   }
 
@@ -142,16 +144,18 @@ class TStore extends ChangeNotifier {
 
   Future<void> save() {
     // Serialize writes and initialize storage if a save happens before load completes.
-    final snapshot = json;
-    _saveQueue = _saveQueue.catchError((_) {}).then((_) async {
-      try {
-        final prefs = _p ?? await SharedPreferences.getInstance();
-        _p = prefs;
-        await prefs.setString('tuition_data', snapshot);
-      } catch (_) {
-        // Keep the app responsive; a subsequent save can retry.
-      }
-    });
+    String? snapshot;
+    try {
+      snapshot = json;
+    } catch (e) {
+      Persist.lastError = 'could not encode tuition data: $e';
+    }
+    if (snapshot != null) {
+      final data = snapshot;
+      _saveQueue = _saveQueue.catchError((_) {}).then((_) async {
+        await Persist.write('tuition_data', data);
+      });
+    }
     notifyListeners();
     return _saveQueue;
   }

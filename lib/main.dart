@@ -12,8 +12,20 @@ import 'settings_page.dart';
 import 'prayer_page.dart';
 import 'tuition.dart';
 
+// Saves again whenever the app goes to the background or is closed.
+class _Flush with WidgetsBindingObserver {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState s) {
+    if (s == AppLifecycleState.paused || s == AppLifecycleState.detached) {
+      st.save(q: true);
+      tst.save();
+    }
+  }
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  WidgetsBinding.instance.addObserver(_Flush());
   // Load every persistent store before allowing the user to edit data. This
   // prevents a late startup load from overwriting changes made on the first screen.
   try {

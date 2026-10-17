@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'notify.dart';
+import 'persist.dart';
 
 String dk(DateTime d) =>
     '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
@@ -91,10 +92,9 @@ class Store extends ChangeNotifier {
   }
 
   Future<void> load() async {
-    final sp = await SharedPreferences.getInstance();
-    p = sp;
-    final j = sp.getString('data');
+    final j = await Persist.read('data');
     if (j == null || !apply(j)) {
+      if (j != null) await Persist.keepBad('data', j);
       profiles = defProfiles();
       cur = 0;
       loadP(profiles[0]['d']);
@@ -178,16 +178,18 @@ class Store extends ChangeNotifier {
 
   Future<void> save({bool q = false}) {
     // Capture a snapshot now and serialize writes so rapid edits cannot race.
-    final snapshot = json;
-    _saveQueue = _saveQueue.catchError((_) {}).then((_) async {
-      try {
-        final prefs = p ?? await SharedPreferences.getInstance();
-        p = prefs;
-        await prefs.setString('data', snapshot);
-      } catch (_) {
-        // A later save may retry if storage initialization temporarily fails.
-      }
-    });
+    String? snapshot;
+    try {
+      snapshot = json;
+    } catch (e) {
+      Persist.lastError = 'could not encode data: $e';
+    }
+    if (snapshot != null) {
+      final data = snapshot;
+      _saveQueue = _saveQueue.catchError((_) {}).then((_) async {
+        await Persist.write('data', data);
+      });
+    }
     if (!q) {
       notifyListeners();
       _resched();
