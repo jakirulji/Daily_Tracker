@@ -137,6 +137,35 @@ jobs:
           assert 'create("release")' in s and 'getByName("release")' in s
           open(p, 'w').write(s)
           EOF
+      - name: Preserve generic signatures for scheduled notifications
+        run: |
+          cat > android/app/proguard-rules.pro <<'EOF'
+          # flutter_local_notifications uses Gson TypeToken to restore scheduled notifications.
+          # R8 must retain generic type signatures for these classes.
+          -keepattributes Signature
+          -keep class com.google.gson.reflect.TypeToken { *; }
+          -keep class * extends com.google.gson.reflect.TypeToken
+          EOF
+          python3 - <<'EOF'
+          p = 'android/app/build.gradle.kts'
+          s = open(p, encoding='utf-8').read()
+          # Add the ProGuard rules to the release build type without changing signing.
+          build_types = s.find('buildTypes {')
+          if build_types < 0:
+              raise SystemExit('Could not find buildTypes block in app Gradle file')
+          release = s.find('release {', build_types)
+          if release < 0:
+              raise SystemExit('Could not find release build type in app Gradle file')
+          block_end = s.find('\n        }', release)
+          if block_end < 0:
+              raise SystemExit('Could not find end of release build type')
+          block = s[release:block_end]
+          rule = 'proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")'
+          if 'proguard-rules.pro' not in block:
+              s = s[:block_end] + '\n            ' + rule + s[block_end:]
+          open(p, 'w', encoding='utf-8').write(s)
+          print('Configured release ProGuard rules for Gson TypeToken signatures')
+          EOF
       - name: Show generated Gradle files (for debugging)
         run: |
           cat android/gradle.properties
