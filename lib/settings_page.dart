@@ -11,6 +11,7 @@ import 'notify.dart';
 import 'ui.dart';
 import 'exam_page.dart';
 import 'appearance_page.dart';
+import 'attention.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -70,6 +71,8 @@ class SettingsPage extends StatelessWidget {
               onTap: () => Navigator.push(c, MaterialPageRoute(builder: (_) => const ExamPage())),
             ),
           ],
+          const Divider(),
+          const AttentionSettings(),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.notifications_active_outlined),

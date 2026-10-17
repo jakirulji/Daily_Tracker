@@ -3,6 +3,7 @@ import 'store.dart';
 import 'tuition.dart';
 import 'exam_page.dart';
 import 'ui.dart';
+import 'attention.dart';
 
 class HomeDashboardPage extends StatelessWidget {
   const HomeDashboardPage({super.key});
@@ -144,6 +145,8 @@ class HomeDashboardPage extends StatelessWidget {
                     ],
                   ),
                 ),
+                const SizedBox(height: 16),
+                const AttentionCard(),
                 const SizedBox(height: 16),
                 _examHighlight(context, nextExam, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ExamPage()))),
                 const SizedBox(height: 20),

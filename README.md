@@ -263,3 +263,36 @@ Reading order: this README -> lib/store.dart -> lib/main.dart -> the page you
 need to change. When you change code, keep the data-model rules in section 4 and
 always return complete files, not fragments.
 ================================================================================
+
+--------------------------------------------------------------------------------
+12. ATTENTION MODE (Phase 1: Do Not Disturb)
+--------------------------------------------------------------------------------
+Goal: silence distracting notifications while studying. Calls and alarms always
+ring. Phase 1 uses Android Do Not Disturb ("Priority only": calls from anyone,
+repeat callers, alarms). Everything else is silenced but stays in the shade.
+Planned later: Phase 2 = per-app modes (Block / Allow / VIP only / OTP only) with a
+NotificationListenerService, focus-end summary; Phase 3 = per-app daily time limit lock.
+
+Files
+  lib/attention.dart              class Attention (global `att`, MethodChannel "attention"),
+                                  AttentionCard (Home), AttentionSettings (Settings),
+                                  startAttention/stopAttention helpers.
+  native/android/MainActivity.kt  replaces the generated MainActivity (CI copies it).
+  native/android/AttentionCore.kt DND logic: enable/disable/status, saves + restores the
+                                  user's previous DND filter AND policy, end-time alarm.
+  native/android/AttentionEndReceiver.kt  alarm + boot receiver (turns it off at end time).
+  CI step "Add Attention mode ..." copies the 3 .kt files, adds permission
+  ACCESS_NOTIFICATION_POLICY and registers the receiver.
+
+Rules
+  - Needs one-time "Do Not Disturb access" (Settings -> Daily Tracker). No dialog by itself.
+  - Every session has an END TIME (alarm), so a crash/kill/reboot cannot leave DND stuck.
+  - Owner: "manual" or "pomodoro". Pomodoro only switches off a session it started.
+  - If the user switches DND off by hand, status() notices and restores the policy.
+  - Store fields (device level, in backup JSON root): attAuto (Pomodoro auto-on, default
+    false), attBreak (stay on during break, default false), attMin (last duration, 60).
+  - Timer: focus Start -> on, until endAt-3s (so the "done" notification can sound).
+    Pause / Reset / mode change / finish / page dispose -> off (pomodoro-owned only).
+    attBreak on: stays on past focus end (+break length +5 min) and ends with the break.
+Unverified on real devices: VoIP calls (WhatsApp/Messenger/Telegram) passing DND depends on
+the app tagging its notification as a call; test it.

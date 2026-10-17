@@ -76,6 +76,9 @@ class Store extends ChangeNotifier {
   double goal = 4;
   String exam = '', examDate = '', cel = '', faith = '', sel = dk(DateTime.now());
   bool dark = false, amoled = false;
+  // Attention mode settings (device-level, not per profile)
+  bool attAuto = false, attBreak = false;
+  int attMin = 60;
   String themeStyle = 'premium';
   String themeMode = 'system';
   int seed = 0xFF5C6BC0, mi = 0, cur = 0, tab = 0;
@@ -129,7 +132,7 @@ class Store extends ChangeNotifier {
 
   String get json {
     profiles[cur]['d'] = pdata;
-    return jsonEncode({'profiles': profiles, 'cur': cur, 'dark': dark, 'amoled': amoled, 'seed': seed, 'themeStyle': themeStyle, 'themeMode': themeMode});
+    return jsonEncode({'profiles': profiles, 'cur': cur, 'dark': dark, 'amoled': amoled, 'seed': seed, 'themeStyle': themeStyle, 'themeMode': themeMode, 'attAuto': attAuto, 'attBreak': attBreak, 'attMin': attMin});
   }
 
   void _load(String j) {
@@ -154,6 +157,9 @@ class Store extends ChangeNotifier {
     themeMode = ['system', 'light', 'dark'].contains(savedMode)
         ? savedMode as String
         : (dark ? 'dark' : 'light');
+    attAuto = m['attAuto'] == true;
+    attBreak = m['attBreak'] == true;
+    attMin = ((m['attMin'] ?? 60) as num).toInt().clamp(1, 720).toInt();
     tab = 0;
     loadP(profiles[cur]['d'] ?? {});
   }

@@ -11,6 +11,7 @@ import 'stats_page.dart';
 import 'settings_page.dart';
 import 'prayer_page.dart';
 import 'tuition.dart';
+import 'attention.dart';
 
 // Saves again whenever the app goes to the background or is closed.
 class _Flush with WidgetsBindingObserver {
@@ -20,6 +21,7 @@ class _Flush with WidgetsBindingObserver {
       st.save(q: true);
       tst.save();
     }
+    if (s == AppLifecycleState.resumed) att.refresh();
   }
 }
 
@@ -48,6 +50,7 @@ Future<void> _initializeApp() async {
   }
 
   unawaited(Notif.askPermission());
+  unawaited(att.refresh());
   try {
     await ExamWidgetSync.update().timeout(const Duration(seconds: 5));
   } catch (_) {}

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'store.dart';
 import 'notify.dart';
+import 'ui.dart';
+import 'attention.dart';
 
 /// Timer is based on an end timestamp (not a ticking counter), so it stays
 /// correct when the app is minimised / screen is off, and a notification is
@@ -49,18 +51,36 @@ class _TP extends State<TimerPage> with WidgetsBindingObserver {
 
   void finish() {
     HapticFeedback.heavyImpact();
+    // Keep Attention mode on into the break only if the focus session ended on time
+    // (not if the app was closed for a long time), and the user chose that in Settings.
+    final onTime = endAt != null && DateTime.now().difference(endAt!).inSeconds < 60;
+    final keep = !brk && st.attAuto && st.attBreak && onTime;
     if (!brk) { st.addLog(who, md['f']); done++; }
-    stop();
+    stop(keepAtt: keep);
     brk = !brk;
     left = total;
+    if (keep) {
+      att.enable('pomodoro', DateTime.now().add(Duration(minutes: (md['b'] as num).toInt() + 5)));
+    }
   }
 
-  void stop() {
+  void stop({bool keepAtt = false}) {
     t?.cancel();
     t = null;
     run = false;
     endAt = null;
     Notif.clearTimer();
+    // Only switches off Attention mode if pomodoro itself turned it on.
+    if (!keepAtt) att.disable('pomodoro');
+  }
+
+  // Attention mode ends 3 s before the timer ends, so the "session done" notification can still make a sound.
+  // If it should stay on into the break, it runs 5 min past the end (time to press Start on the break).
+  DateTime _attUntil() => (!brk && st.attBreak) ? endAt!.add(const Duration(minutes: 5)) : endAt!.subtract(const Duration(seconds: 3));
+
+  Future<void> _attOn() async {
+    final ok = await att.enable('pomodoro', _attUntil());
+    if (!ok && mounted) snack(context, 'Attention mode could not start. Check Do Not Disturb access in Settings.');
   }
 
   void tick(Timer _) => setState(sync);
@@ -78,6 +98,7 @@ class _TP extends State<TimerPage> with WidgetsBindingObserver {
         brk ? 'Time to get back to focus.' : '${md['f']} min of focus on $who. Take a break!',
         endAt!,
       );
+      if (st.attAuto && (!brk || st.attBreak)) _attOn();
     }
     setState(() {});
   }
@@ -127,7 +148,10 @@ class _TP extends State<TimerPage> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     t?.cancel();
-    if (run) Notif.clearTimer();
+    if (run) {
+      Notif.clearTimer();
+      att.disable('pomodoro');
+    }
     super.dispose();
   }
 
