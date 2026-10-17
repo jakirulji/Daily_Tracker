@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'exam_widget.dart';
 import 'store.dart';
 import 'ui.dart';
 
@@ -30,7 +31,7 @@ class _ExamPageState extends State<ExamPage> {
     return d == null ? value : d.day.toString().padLeft(2,'0') + '/' + d.month.toString().padLeft(2,'0') + '/' + d.year.toString();
   }
 
-  void save() { st.save(); }
+  void save() { st.save(); ExamWidgetSync.update(); }
 
   Future<void> addExam({Map? old}) async {
     final title = TextEditingController(text: old?['title'] ?? '');
