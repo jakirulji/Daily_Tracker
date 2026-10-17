@@ -19,10 +19,16 @@ jobs:
           import re
           gp = 'android/gradle.properties'
           props = open(gp, encoding='utf-8').read()
-          for k in ('android.newDsl', 'android.builtInKotlin'):
+          for k in ('android.newDsl', 'android.builtInKotlin', 'kotlin.jvm.target.validation.mode'):
               props = re.sub(r'(?m)^' + re.escape(k) + r'=.*\n?', '', props)
-          props = props.rstrip('\n') + '\nandroid.newDsl=false\nandroid.builtInKotlin=false\n'
+          props = props.rstrip('\n') + '\nandroid.newDsl=false\nandroid.builtInKotlin=false\nkotlin.jvm.target.validation.mode=warning\n'
           open(gp, 'w', encoding='utf-8').write(props)
+
+          rp = 'android/build.gradle.kts'
+          r = open(rp, encoding='utf-8').read()
+          if 'JVM_17' not in r:
+              r += '\nsubprojects {\n    if (name != "app") {\n        tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {\n            compilerOptions {\n                jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)\n            }\n        }\n    }\n}\n'
+              open(rp, 'w', encoding='utf-8').write(r)
 
           p = 'android/app/build.gradle.kts'
           s = open(p, encoding='utf-8').read()
@@ -131,6 +137,8 @@ jobs:
           cat android/gradle.properties
           echo ---------- settings
           cat android/settings.gradle.kts
+          echo ---------- root build
+          cat android/build.gradle.kts
           echo ---------- app build
           cat android/app/build.gradle.kts
       - run: flutter build apk --release
@@ -142,4 +150,3 @@ jobs:
         with:
           name: app
           path: build/app/outputs/flutter-apk/app-release.apk
-          
