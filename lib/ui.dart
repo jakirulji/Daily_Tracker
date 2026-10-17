@@ -164,7 +164,6 @@ class AppDrawer extends StatelessWidget {
                   title: Text(st.profiles[i]['n']),
                   selected: i == st.cur,
                   onTap: () {
-                    final isPrayer = st.profiles[i]['t'] == 'prayer';
                     st.switchTo(i);
                     // Open the selected profile's actual tracker screen instead of
                     // returning to the same-looking dashboard, which felt like no action.
