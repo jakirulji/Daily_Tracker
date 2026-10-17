@@ -16,19 +16,25 @@ jobs:
       - name: Configure Android and Kotlin compatibility
         run: |
           python3 - <<'EOF'
+          import re
           gp = 'android/gradle.properties'
           props = open(gp, encoding='utf-8').read()
-          if 'android.newDsl=' not in props:
-              props += '\nandroid.newDsl=false\n'
+          for k in ('android.newDsl', 'android.builtInKotlin'):
+              props = re.sub(r'(?m)^' + re.escape(k) + r'=.*\n?', '', props)
+          props = props.rstrip('\n') + '\nandroid.newDsl=false\nandroid.builtInKotlin=false\n'
           open(gp, 'w', encoding='utf-8').write(props)
 
           p = 'android/app/build.gradle.kts'
           s = open(p, encoding='utf-8').read()
-          marker = 'tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach'
-          if marker not in s:
-              s += '\n\n' + marker + ' {\n    compilerOptions {\n        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)\n    }\n}\n'
+          m = re.search(r'sourceCompatibility\s*=\s*JavaVersion\.VERSION_(\d+)', s)
+          jv = m.group(1) if m else '17'
+          if jv not in ('8', '11', '17', '21'):
+              jv = '17'
+          if re.search(r'kotlinOptions\s*\{[^{}]*\}', s):
+              s = re.sub(r'kotlinOptions\s*\{[^{}]*\}\s*', '', s)
+              s += '\nkotlin {\n    compilerOptions {\n        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.fromTarget("' + jv + '"))\n    }\n}\n'
           open(p, 'w', encoding='utf-8').write(s)
-          print('Android legacy DSL compatibility enabled; Kotlin JVM target set to 11')
+          print('newDsl=false, builtInKotlin=false, kotlin jvmTarget =', jv)
           EOF
       - run: flutter pub get
       - name: Generate Android launcher icons
@@ -120,6 +126,13 @@ jobs:
           assert 'create("release")' in s and 'getByName("release")' in s
           open(p, 'w').write(s)
           EOF
+      - name: Show generated Gradle files (for debugging)
+        run: |
+          cat android/gradle.properties
+          echo ---------- settings
+          cat android/settings.gradle.kts
+          echo ---------- app build
+          cat android/app/build.gradle.kts
       - run: flutter build apk --release
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -129,3 +142,4 @@ jobs:
         with:
           name: app
           path: build/app/outputs/flutter-apk/app-release.apk
+          
