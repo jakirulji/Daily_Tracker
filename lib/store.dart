@@ -69,8 +69,8 @@ void setDone(Map e, String d, bool v) {
 }
 
 class Store extends ChangeNotifier {
-  late SharedPreferences p;
-  List<Map> profiles = [], subjects = [], tasks = [], modes = [], prayers = [];
+  SharedPreferences? p;
+  List<Map> profiles = [], subjects = [], tasks = [], modes = [], prayers = [], exams = [];
   Map logs = {}, notes = {}, pdone = {}, oldCol = {};
   double goal = 4;
   String exam = '', examDate = '', cel = '', faith = '', sel = dk(DateTime.now());
@@ -81,17 +81,25 @@ class Store extends ChangeNotifier {
   bool get tracker => profiles[cur]['t'] != 'prayer';
   String get pname => profiles[cur]['n'];
 
+  // Usable defaults from the very first frame, so the UI never builds with an empty profile list.
+  Store() {
+    profiles = defProfiles();
+    loadP(profiles[0]['d']);
+  }
+
   Future<void> load() async {
-    p = await SharedPreferences.getInstance();
-    final j = p.getString('data');
+    final sp = await SharedPreferences.getInstance();
+    p = sp;
+    final j = sp.getString('data');
     if (j == null || !apply(j)) {
       profiles = defProfiles();
       cur = 0;
       loadP(profiles[0]['d']);
     }
+    notifyListeners();
   }
 
-  Map get pdata => {'subjects': subjects, 'tasks': tasks, 'logs': logs, 'notes': notes, 'goal': goal, 'exam': exam, 'examDate': examDate, 'cel': cel, 'modes': modes, 'mi': mi, 'faith': faith, 'prayers': prayers, 'pdone': pdone, 'oldCol': oldCol};
+  Map get pdata => {'subjects': subjects, 'tasks': tasks, 'logs': logs, 'notes': notes, 'goal': goal, 'exam': exam, 'examDate': examDate, 'cel': cel, 'modes': modes, 'mi': mi, 'faith': faith, 'prayers': prayers, 'pdone': pdone, 'oldCol': oldCol, 'exams': exams};
 
   // Data of any profile (current one comes from live fields)
   Map dataOf(int i) => i == cur ? pdata : (profiles[i]['d'] as Map? ?? {});
@@ -112,6 +120,7 @@ class Store extends ChangeNotifier {
     faith = m['faith'] ?? '';
     prayers = List<Map>.from(m['prayers'] ?? []);
     pdone = Map.from(m['pdone'] ?? {});
+    exams = List<Map>.from(m['exams'] ?? []);
     oldCol = Map.from(m['oldCol'] ?? {});
   }
 
@@ -158,7 +167,7 @@ class Store extends ChangeNotifier {
   }
 
   void save({bool q = false}) {
-    p.setString('data', json);
+    p?.setString('data', json);
     if (!q) {
       notifyListeners();
       _resched();

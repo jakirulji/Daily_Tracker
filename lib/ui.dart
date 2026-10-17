@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'store.dart';
 import 'tuition.dart';
+import 'exam_page.dart';
 
 void snack(BuildContext c, String m) => ScaffoldMessenger.of(c).showSnackBar(SnackBar(content: Text(m)));
 
@@ -175,6 +176,13 @@ class AppDrawer extends StatelessWidget {
                     itemBuilder: (_) => const [PopupMenuItem(value: 'ren', child: Text('Rename')), PopupMenuItem(value: 'del', child: Text('Delete'))],
                   ),
                 ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.event_note_rounded),
+                title: const Text('Exam Tracker'),
+                subtitle: const Text('Exam routine, syllabus & countdown'),
+                onTap: () { Navigator.pop(c); Navigator.push(c, MaterialPageRoute(builder: (_) => const ExamPage())); },
+              ),
               const Divider(),
               ListTile(
                 leading: const Icon(Icons.school),

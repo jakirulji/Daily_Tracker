@@ -46,7 +46,21 @@ class TodayPage extends StatelessWidget {
     );
   }
 
-  Widget head(String s) => Padding(padding: const EdgeInsets.fromLTRB(4, 16, 4, 4), child: Text(s, style: const TextStyle(fontWeight: FontWeight.bold)));
+  Widget head(String s) => Padding(
+        padding: const EdgeInsets.fromLTRB(4, 20, 4, 9),
+        child: Text(s, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, letterSpacing: -.25)),
+      );
+
+  Widget _quickMetric(IconData icon, String value, String label, Color color) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: Column(children: [
+          Icon(icon, color: color, size: 21),
+          const SizedBox(height: 5),
+          Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 2),
+          Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 10)),
+        ]),
+      );
 
   @override
   Widget build(BuildContext c) => ListenableBuilder(
@@ -89,6 +103,22 @@ class TodayPage extends StatelessWidget {
                     ]),
                   ),
                 ]),
+              ),
+              const SizedBox(height: 14),
+              Card(
+                elevation: 0,
+                color: cs.surfaceContainerLow,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Row(children: [
+                    Expanded(child: _quickMetric(Icons.check_circle_outline_rounded, '${dn}/${todays.length}', 'Tasks done', cs.primary)),
+                    Container(width: 1, height: 38, color: cs.outlineVariant),
+                    Expanded(child: _quickMetric(Icons.pending_actions_rounded, '${todays.length - dn}', 'Remaining', cs.tertiary)),
+                    Container(width: 1, height: 38, color: cs.outlineVariant),
+                    Expanded(child: _quickMetric(Icons.bolt_rounded, '${(v * 100).round()}%', 'Focus goal', cs.secondary)),
+                  ]),
+                ),
               ),
               const SizedBox(height: 12),
               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [

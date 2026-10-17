@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="exam_compact_widget_description">Upcoming exam countdown and syllabus progress</string>
+    <string name="exam_detailed_widget_description">Upcoming exam, syllabus progress and subject progress</string>
+</resources>
