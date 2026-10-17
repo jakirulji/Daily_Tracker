@@ -30,6 +30,11 @@ jobs:
               r += '\nsubprojects {\n    if (name != "app") {\n        tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {\n            compilerOptions {\n                jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)\n            }\n        }\n    }\n}\n'
               open(rp, 'w', encoding='utf-8').write(r)
 
+          r = open(rp, encoding='utf-8').read()
+          if 'androidx.glance' not in r:
+              r += '\nsubprojects {\n    configurations.configureEach {\n        resolutionStrategy.eachDependency {\n            if (requested.group == "androidx.glance" && !requested.name.contains("wear")) {\n                useVersion("1.2.0")\n            }\n        }\n    }\n}\n'
+              open(rp, 'w', encoding='utf-8').write(r)
+
           p = 'android/app/build.gradle.kts'
           s = open(p, encoding='utf-8').read()
           m = re.search(r'sourceCompatibility\s*=\s*JavaVersion\.VERSION_(\d+)', s)
@@ -150,3 +155,4 @@ jobs:
         with:
           name: app
           path: build/app/outputs/flutter-apk/app-release.apk
+          
