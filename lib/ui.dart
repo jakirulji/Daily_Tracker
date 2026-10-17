@@ -163,7 +163,14 @@ class AppDrawer extends StatelessWidget {
                   leading: Icon(st.profiles[i]['t'] == 'prayer' ? Icons.self_improvement : Icons.checklist),
                   title: Text(st.profiles[i]['n']),
                   selected: i == st.cur,
-                  onTap: () { st.switchTo(i); Navigator.pop(c); },
+                  onTap: () {
+                    final isPrayer = st.profiles[i]['t'] == 'prayer';
+                    st.switchTo(i);
+                    // Open the selected profile's actual tracker screen instead of
+                    // returning to the same-looking dashboard, which felt like no action.
+                    st.goTab(1); // Prayer page for prayer profiles; task tracker for others.
+                    Navigator.pop(c);
+                  },
                   trailing: PopupMenuButton<String>(
                     onSelected: (v) async {
                       if (v == 'del') {
