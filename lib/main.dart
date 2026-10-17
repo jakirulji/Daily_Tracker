@@ -128,7 +128,13 @@ class App extends StatelessWidget {
         builder: (_, __) => MaterialApp(
           title: 'Daily Tracker',
           debugShowCheckedModeBanner: false,
-          theme: _buildAppTheme(dark: st.dark, amoled: st.amoled, style: st.themeStyle, customSeed: st.seed),
+          theme: _buildAppTheme(dark: false, amoled: false, style: st.themeStyle, customSeed: st.seed),
+          darkTheme: _buildAppTheme(dark: true, amoled: st.amoled, style: st.themeStyle, customSeed: st.seed),
+          themeMode: switch (st.themeMode) {
+            'light' => ThemeMode.light,
+            'dark' => ThemeMode.dark,
+            _ => ThemeMode.system,
+          },
           home: const Home(),
         ),
       );
