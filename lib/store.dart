@@ -75,6 +75,7 @@ class Store extends ChangeNotifier {
   double goal = 4;
   String exam = '', examDate = '', cel = '', faith = '', sel = dk(DateTime.now());
   bool dark = false, amoled = false;
+  String themeStyle = 'premium';
   int seed = 0xFF5C6BC0, mi = 0, cur = 0, tab = 0;
   Timer? _rs;
   Future<void> _saveQueue = Future<void>.value();
@@ -127,7 +128,7 @@ class Store extends ChangeNotifier {
 
   String get json {
     profiles[cur]['d'] = pdata;
-    return jsonEncode({'profiles': profiles, 'cur': cur, 'dark': dark, 'amoled': amoled, 'seed': seed});
+    return jsonEncode({'profiles': profiles, 'cur': cur, 'dark': dark, 'amoled': amoled, 'seed': seed, 'themeStyle': themeStyle});
   }
 
   void _load(String j) {
@@ -145,6 +146,8 @@ class Store extends ChangeNotifier {
     dark = m['dark'] ?? false;
     amoled = m['amoled'] ?? false;
     seed = m['seed'] ?? seed;
+    final savedStyle = m['themeStyle'];
+    themeStyle = ['premium', 'colorful', 'glass'].contains(savedStyle) ? savedStyle as String : 'premium';
     tab = 0;
     loadP(profiles[cur]['d'] ?? {});
   }
