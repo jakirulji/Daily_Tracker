@@ -21,9 +21,9 @@ jobs:
           s = open(p, encoding='utf-8').read()
           s, count = re.subn(r'applicationId\s*=\s*"[^"]+"', 'applicationId = "com.daily_trackar.help"', s, count=1)
           if count != 1:
-              raise SystemExit('Could not set test applicationId')
+              raise SystemExit('Could not set main applicationId')
           open(p, 'w', encoding='utf-8').write(s)
-          print('TEST applicationId = com.daily_trackar.help')
+          print('MAIN applicationId = com.daily_trackar.help')
           EOF
       - name: Configure Android and Kotlin compatibility
         run: |
@@ -60,6 +60,10 @@ jobs:
           print('newDsl=false, builtInKotlin=false, kotlin jvmTarget =', jv)
           EOF
       - run: flutter pub get
+      - name: Generate Android launcher icons
+        run: |
+          test -f assets/app_icon.png || (echo "Missing assets/app_icon.png. Upload the Daily Tracker logo to this path." && exit 1)
+          dart run flutter_launcher_icons
       - run: sed -i 's/android:label="[^"]*"/android:label="Daily Tracker"/' android/app/src/main/AndroidManifest.xml
       - name: Patch Android for notifications
         run: |
