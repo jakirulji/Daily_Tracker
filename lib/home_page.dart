@@ -105,8 +105,11 @@ class HomeDashboardPage extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(21),
                   decoration: BoxDecoration(
+                    // Fixed deeper tones keep white text readable with every theme seed.
                     gradient: LinearGradient(
-                      colors: [cs.primary, cs.tertiary],
+                      colors: Theme.of(context).brightness == Brightness.dark
+                          ? const [Color(0xFF34205F), Color(0xFF542B55)]
+                          : const [Color(0xFF49318A), Color(0xFF8A315F)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -120,7 +123,7 @@ class HomeDashboardPage extends StatelessWidget {
                           Text(now.hour < 12 ? 'Good morning 👋' : now.hour < 17 ? 'Good afternoon 👋' : 'Good evening 👋',
                               style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
                           const SizedBox(height: 5),
-                          Text('${now.day} ${_month(now.month)} ${now.year}', style: const TextStyle(color: Colors.white70)),
+                          Text('${now.day} ${_month(now.month)} ${now.year}', style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
                         ])),
                         Container(
                           width: 48, height: 48,
@@ -133,7 +136,7 @@ class HomeDashboardPage extends StatelessWidget {
                       const SizedBox(height: 10),
                       Row(children: [
                         Expanded(child: _heroMetric('${completed}/${tasks.length}', 'Tasks done')),
-                        Container(width: 1, height: 38, color: Colors.white24),
+                        Container(width: 1, height: 38, color: Colors.white54),
                         Expanded(child: _heroMetric(_duration(focusMinutes), 'Focus today')),
                         Container(width: 1, height: 38, color: Colors.white24),
                         Expanded(child: _heroMetric('${prayerDone}/${prayerItems.length}', 'Prayer routine')),
@@ -275,7 +278,7 @@ class HomeDashboardPage extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900)),
           const SizedBox(height: 4),
-          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 10)),
+          Text(label, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500)),
         ]),
       );
 
