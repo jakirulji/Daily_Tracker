@@ -13,6 +13,18 @@ jobs:
         with:
           channel: stable
       - run: flutter create . --project-name study_planner --platforms=android
+      - name: Configure MAIN app identity
+        run: |
+          python3 - <<'EOF'
+          import re
+          p = 'android/app/build.gradle.kts'
+          s = open(p, encoding='utf-8').read()
+          s, count = re.subn(r'applicationId\\s*=\\s*"[^"]+"', 'applicationId = "com.daily_trackar.help"', s, count=1)
+          if count != 1:
+              raise SystemExit('Could not set main applicationId')
+          open(p, 'w', encoding='utf-8').write(s)
+          print('MAIN applicationId = com.daily_trackar.help')
+          EOF
       - run: flutter pub get
       - run: sed -i 's/android:label="[^"]*"/android:label="Daily Tracker"/' android/app/src/main/AndroidManifest.xml
       - name: Patch Android for notifications
@@ -84,7 +96,9 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      - name: Name MAIN APK
+        run: cp build/app/outputs/flutter-apk/app-release.apk "build/app/outputs/flutter-apk/Daily Tracker.apk"
       - uses: actions/upload-artifact@v4
         with:
-          name: app
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: Daily Tracker-apk
+          path: build/app/outputs/flutter-apk/Daily Tracker.apk
