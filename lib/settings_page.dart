@@ -114,23 +114,52 @@ class SettingsPage extends StatelessWidget {
             ),
           ),
           Card(
-            child: Column(children: [
-              SwitchListTile(
-                secondary: const Icon(Icons.dark_mode_outlined),
-                title: const Text('Dark mode'),
-                subtitle: const Text('Use a darker colour scheme'),
-                value: st.dark,
-                onChanged: (v) { st.dark = v; st.save(); },
-              ),
-              const Divider(height: 1, indent: 16, endIndent: 16),
-              SwitchListTile(
-                secondary: const Icon(Icons.nightlight_round),
-                title: const Text('AMOLED black'),
-                subtitle: const Text('Pure black background (requires dark mode)'),
-                value: st.amoled,
-                onChanged: st.dark ? (v) { st.amoled = v; st.save(); } : null,
-              ),
-            ]),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Row(children: [
+                  Icon(Icons.brightness_6_outlined),
+                  SizedBox(width: 10),
+                  Text('Brightness', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                ]),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<String>(
+                    showSelectedIcon: false,
+                    segments: const [
+                      ButtonSegment(value: 'light', label: Text('Light'), icon: Icon(Icons.light_mode_outlined)),
+                      ButtonSegment(value: 'dark', label: Text('Dark'), icon: Icon(Icons.dark_mode_outlined)),
+                      ButtonSegment(value: 'system', label: Text('System'), icon: Icon(Icons.settings_suggest_outlined)),
+                    ],
+                    selected: {st.themeMode},
+                    onSelectionChanged: (values) {
+                      final mode = values.first;
+                      st.themeMode = mode;
+                      st.dark = mode == 'dark' ||
+                          (mode == 'system' && MediaQuery.platformBrightnessOf(c) == Brightness.dark);
+                      st.save();
+                    },
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  st.themeMode == 'system'
+                      ? 'Follows your phone appearance setting'
+                      : st.themeMode == 'dark' ? 'Uses the dark version of the selected theme' : 'Uses the light version of the selected theme',
+                  style: Theme.of(c).textTheme.bodySmall,
+                ),
+                const Divider(height: 24),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  secondary: const Icon(Icons.nightlight_round),
+                  title: const Text('AMOLED black'),
+                  subtitle: const Text('Pure black background in dark mode'),
+                  value: st.amoled,
+                  onChanged: st.themeMode != 'light' ? (v) { st.amoled = v; st.save(); } : null,
+                ),
+              ]),
+            ),
           ),
           if (st.tracker) ...[
             ListTile(
