@@ -19,7 +19,7 @@ jobs:
           import re
           p = 'android/app/build.gradle.kts'
           s = open(p, encoding='utf-8').read()
-          s, count = re.subn(r'applicationId\\s*=\\s*"[^"]+"', 'applicationId = "com.daily_trackar.help"', s, count=1)
+          s, count = re.subn(r'applicationId\s*=\s*"[^"]+"', 'applicationId = "com.daily_trackar.help"', s, count=1)
           if count != 1:
               raise SystemExit('Could not set main applicationId')
           open(p, 'w', encoding='utf-8').write(s)
