@@ -1,62 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/widget_root"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="15dp"
-    android:background="@drawable/exam_widget_background">
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="✦  EXAM TRACKER"
-        android:textColor="#A7F3D0"
-        android:textSize="10sp"
-        android:textStyle="bold"
-        android:letterSpacing="0.08" />
-
-    <TextView
-        android:id="@+id/exam_title"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="5dp"
-        android:text="Upcoming exam"
-        android:textColor="#FFFFFF"
-        android:textStyle="bold"
-        android:textSize="16sp"
-        android:maxLines="1"
-        android:ellipsize="end" />
-
-    <TextView
-        android:id="@+id/exam_days"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="1dp"
-        android:text="12 days left"
-        android:textColor="#6EE7B7"
-        android:textStyle="bold"
-        android:textSize="22sp"
-        android:maxLines="1"
-        android:ellipsize="end" />
-
-    <ProgressBar
-        android:id="@+id/exam_progress"
-        style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="match_parent"
-        android:layout_height="7dp"
-        android:layout_marginTop="8dp"
-        android:max="100"
-        android:progressDrawable="@drawable/exam_widget_progress" />
-
-    <TextView
-        android:id="@+id/exam_progress_label"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="5dp"
-        android:text="0 / 0 topics prepared"
-        android:textColor="#D2D9EC"
-        android:textSize="11sp"
-        android:maxLines="1"
-        android:ellipsize="end" />
+    android:id="@+id/widget_root" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:padding="14dp"
+    android:background="@android:drawable/dialog_holo_light_frame">
+    <TextView android:id="@+id/exam_title" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="Upcoming exam" android:textStyle="bold" android:textSize="16sp" android:maxLines="1" android:ellipsize="end" android:textColor="#171A3B"/>
+    <TextView android:id="@+id/exam_days" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="12 days left" android:textSize="13sp" android:paddingTop="3dp"/>
+    <ProgressBar android:id="@+id/exam_progress" style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent" android:layout_height="8dp" android:layout_marginTop="8dp" android:max="100"/>
+    <TextView android:id="@+id/exam_progress_label" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="0 / 0 topics prepared" android:textSize="11sp" android:paddingTop="4dp"/>
 </LinearLayout>
