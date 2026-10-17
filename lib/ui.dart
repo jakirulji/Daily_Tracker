@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'store.dart';
 import 'tuition.dart';
 import 'exam_page.dart';
+import 'today_page.dart';
+import 'prayer_page.dart';
 
 void snack(BuildContext c, String m) => ScaffoldMessenger.of(c).showSnackBar(SnackBar(content: Text(m)));
 
@@ -165,10 +167,12 @@ class AppDrawer extends StatelessWidget {
                   selected: i == st.cur,
                   onTap: () {
                     st.switchTo(i);
-                    // Open the selected profile's actual tracker screen instead of
-                    // returning to the same-looking dashboard, which felt like no action.
-                    st.goTab(1); // Prayer page for prayer profiles; task tracker for others.
-                    Navigator.pop(c);
+                    final isPrayer = st.profiles[i]['t'] == 'prayer';
+                    final nav = Navigator.of(c);
+                    nav.pop();
+                    nav.push(MaterialPageRoute(
+                      builder: (_) => ProfileTrackerScreen(isPrayer: isPrayer),
+                    ));
                   },
                   trailing: PopupMenuButton<String>(
                     onSelected: (v) async {
@@ -204,6 +208,32 @@ class AppDrawer extends StatelessWidget {
               ListTile(leading: const Icon(Icons.add), title: const Text('Add profile'), onTap: () { Navigator.pop(c); addProfile(c); }),
             ]),
           ),
+        ),
+      );
+}
+
+
+/// A standalone tracker route, matching the open/back behaviour of Exam and Tuition.
+class ProfileTrackerScreen extends StatelessWidget {
+  final bool isPrayer;
+  const ProfileTrackerScreen({super.key, required this.isPrayer});
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: st,
+        builder: (context, _) => Scaffold(
+          appBar: AppBar(
+            title: Text(isPrayer ? 'Prayer Tracker' : '${st.pname} Tracker'),
+          ),
+          body: SafeArea(
+            child: isPrayer ? const PrayerPage() : const TodayPage(),
+          ),
+          floatingActionButton: isPrayer
+              ? null
+              : FloatingActionButton(
+                  onPressed: () => taskDialog(context),
+                  child: const Icon(Icons.add),
+                ),
         ),
       );
 }
