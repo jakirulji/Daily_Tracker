@@ -69,7 +69,7 @@ void setDone(Map e, String d, bool v) {
 }
 
 class Store extends ChangeNotifier {
-  late SharedPreferences p;
+  SharedPreferences? p;
   List<Map> profiles = [], subjects = [], tasks = [], modes = [], prayers = [], exams = [];
   Map logs = {}, notes = {}, pdone = {}, oldCol = {};
   double goal = 4;
@@ -81,15 +81,16 @@ class Store extends ChangeNotifier {
   bool get tracker => profiles[cur]['t'] != 'prayer';
   String get pname => profiles[cur]['n'];
 
+  // Usable defaults from the very first frame, so the UI never builds with an empty profile list.
   Store() {
-    // Keep the first frame safe even before SharedPreferences finishes loading.
     profiles = defProfiles();
     loadP(profiles[0]['d']);
   }
 
   Future<void> load() async {
-    p = await SharedPreferences.getInstance();
-    final j = p.getString('data');
+    final sp = await SharedPreferences.getInstance();
+    p = sp;
+    final j = sp.getString('data');
     if (j == null || !apply(j)) {
       profiles = defProfiles();
       cur = 0;
@@ -166,7 +167,7 @@ class Store extends ChangeNotifier {
   }
 
   void save({bool q = false}) {
-    p.setString('data', json);
+    p?.setString('data', json);
     if (!q) {
       notifyListeners();
       _resched();
