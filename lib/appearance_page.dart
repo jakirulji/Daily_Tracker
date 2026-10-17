@@ -18,7 +18,7 @@ class AppearancePage extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
-              Icon(Icons.palette_outlined, color: Theme.of(c).colorScheme.primary, size: 26),
+              Icon(Icons.palette_outlined, color: Theme.of(context).colorScheme.primary, size: 26),
               const SizedBox(width: 10),
               const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('Appearance', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
@@ -42,20 +42,20 @@ class AppearancePage extends StatelessWidget {
               decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-              color: st.themeStyle == option.$1 ? Theme.of(c).colorScheme.primary : Theme.of(c).colorScheme.outlineVariant,
+              color: st.themeStyle == option.$1 ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.outlineVariant,
               width: st.themeStyle == option.$1 ? 2 : 1,
               ),
-              color: st.themeStyle == option.$1 ? Theme.of(c).colorScheme.primaryContainer.withOpacity(0.45) : Colors.transparent,
+              color: st.themeStyle == option.$1 ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.45) : Colors.transparent,
               ),
               child: Row(children: [
-              Icon(option.$4, color: Theme.of(c).colorScheme.primary, size: 25),
+              Icon(option.$4, color: Theme.of(context).colorScheme.primary, size: 25),
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(option.$2, style: const TextStyle(fontWeight: FontWeight.w700)),
               const SizedBox(height: 3),
-              Text(option.$3, style: Theme.of(c).textTheme.bodySmall),
+              Text(option.$3, style: Theme.of(context).textTheme.bodySmall),
               ])),
-              if (st.themeStyle == option.$1) Icon(Icons.check_circle_rounded, color: Theme.of(c).colorScheme.primary),
+              if (st.themeStyle == option.$1) Icon(Icons.check_circle_rounded, color: Theme.of(context).colorScheme.primary),
               ]),
               ),
               ),
@@ -104,7 +104,7 @@ class AppearancePage extends StatelessWidget {
               final mode = values.first;
               st.themeMode = mode;
               st.dark = mode == 'dark' ||
-              (mode == 'system' && MediaQuery.platformBrightnessOf(c) == Brightness.dark);
+              (mode == 'system' && MediaQuery.platformBrightnessOf(context) == Brightness.dark);
               st.save();
               },
               ),
@@ -114,7 +114,7 @@ class AppearancePage extends StatelessWidget {
               st.themeMode == 'system'
               ? 'Follows your phone appearance setting'
               : st.themeMode == 'dark' ? 'Uses the dark version of the selected theme' : 'Uses the light version of the selected theme',
-              style: Theme.of(c).textTheme.bodySmall,
+              style: Theme.of(context).textTheme.bodySmall,
               ),
               const Divider(height: 24),
               SwitchListTile(
