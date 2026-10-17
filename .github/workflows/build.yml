@@ -193,7 +193,7 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       - name: Name MAIN APK
-        run: cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/Daily Tracker.apk
+        run: cp build/app/outputs/flutter-apk/app-release.apk "build/app/outputs/flutter-apk/Daily Tracker.apk"
       - uses: actions/upload-artifact@v4
         with:
           name: Daily Tracker-apk
