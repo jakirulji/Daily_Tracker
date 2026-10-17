@@ -6,8 +6,11 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:file_picker/file_picker.dart';
 import 'store.dart';
+import 'persist.dart';
 import 'notify.dart';
 import 'ui.dart';
+import 'exam_page.dart';
+import 'appearance_page.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -42,18 +45,17 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext c) => ListenableBuilder(
         listenable: st,
-        builder: (c, _) => ListView(children: [
-          SwitchListTile(title: const Text('Dark mode'), value: st.dark, onChanged: (v) { st.dark = v; st.save(); }),
-          SwitchListTile(title: const Text('AMOLED black (needs dark mode)'), value: st.amoled, onChanged: st.dark ? (v) { st.amoled = v; st.save(); } : null),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Wrap(spacing: 10, children: [
-              for (final p in palette)
-                GestureDetector(
-                  onTap: () { st.seed = p; st.save(); },
-                  child: CircleAvatar(radius: 16, backgroundColor: Color(p), child: st.seed == p ? const Icon(Icons.check, color: Colors.white, size: 18) : null),
-                ),
-            ]),
+        builder: (c, _) => ListView(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+          children: [
+          Card(
+            child: ListTile(
+              leading: Icon(Icons.palette_outlined, color: Theme.of(c).colorScheme.primary, size: 28),
+              title: const Text('Appearance', style: TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: const Text('Theme style, colours and light/dark mode'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.push(c, MaterialPageRoute(builder: (_) => const AppearancePage())),
+            ),
           ),
           if (st.tracker) ...[
             ListTile(
@@ -61,17 +63,11 @@ class SettingsPage extends StatelessWidget {
               subtitle: Slider(min: 1, max: 12, divisions: 22, value: st.goal, onChanged: (v) { st.goal = v; st.save(); }),
             ),
             ListTile(
-              title: Text(st.exam == '' ? 'Set exam countdown' : '${st.exam} – ${st.examDate}'),
-              trailing: const Icon(Icons.edit_calendar),
-              onTap: () async {
-                final n = await ask(c, 'Exam name');
-                if (n == null || n.isEmpty || !c.mounted) return;
-                final d = await showDatePicker(context: c, initialDate: DateTime.now().add(const Duration(days: 30)), firstDate: DateTime.now(), lastDate: DateTime(2100));
-                if (d == null) return;
-                st.exam = n;
-                st.examDate = dk(d);
-                st.save();
-              },
+              leading: const Icon(Icons.event_note_rounded),
+              title: const Text('Exam Tracker'),
+              subtitle: const Text('Exam routine, syllabus, countdown & reminders'),
+              trailing: const Icon(Icons.arrow_forward_rounded),
+              onTap: () => Navigator.push(c, MaterialPageRoute(builder: (_) => const ExamPage())),
             ),
           ],
           const Divider(),
@@ -96,6 +92,12 @@ class SettingsPage extends StatelessWidget {
             title: const Text('Import backup file'),
             subtitle: const Text('Pick a .json backup (replaces current data)'),
             onTap: () => importFile(c),
+          ),
+          ListTile(
+            leading: const Icon(Icons.storage_outlined),
+            title: const Text('Storage status'),
+            subtitle: const Text('Check that your data is being saved on this phone'),
+            onTap: () => showStorageStatus(c),
           ),
           ListTile(
             leading: const Icon(Icons.upload),
