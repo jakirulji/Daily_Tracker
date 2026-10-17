@@ -15,6 +15,7 @@ dependencies:
   share_plus: ^10.1.4
   path_provider: ^2.1.0
   file_picker: ^8.1.2
+  home_widget: ^0.8.0
 
 # file_picker 8.x is compiled against SDK 34; newer flutter_plugin_android_lifecycle needs SDK 36.
 # Pinning the older lifecycle plugin fixes the checkReleaseAarMetadata build error.
