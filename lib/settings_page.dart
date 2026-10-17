@@ -43,17 +43,93 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext c) => ListenableBuilder(
         listenable: st,
-        builder: (c, _) => ListView(children: [
-          SwitchListTile(title: const Text('Dark mode'), value: st.dark, onChanged: (v) { st.dark = v; st.save(); }),
-          SwitchListTile(title: const Text('AMOLED black (needs dark mode)'), value: st.amoled, onChanged: st.dark ? (v) { st.amoled = v; st.save(); } : null),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Wrap(spacing: 10, children: [
-              for (final p in palette)
-                GestureDetector(
-                  onTap: () { st.seed = p; st.save(); },
-                  child: CircleAvatar(radius: 16, backgroundColor: Color(p), child: st.seed == p ? const Icon(Icons.check, color: Colors.white, size: 18) : null),
-                ),
+        builder: (c, _) => ListView(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+          children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Icon(Icons.palette_outlined, color: Theme.of(c).colorScheme.primary, size: 26),
+                  const SizedBox(width: 10),
+                  const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Appearance', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                    SizedBox(height: 3),
+                    Text('Choose a look that feels right for you'),
+                  ])),
+                ]),
+                const SizedBox(height: 16),
+                for (final option in [
+                  ('premium', 'Premium & Minimal', 'Navy and violet accents, calm surfaces', Icons.auto_awesome_rounded),
+                  ('colorful', 'Modern & Colorful', 'Choose your own accent colour', Icons.color_lens_rounded),
+                  ('glass', 'Soft Glass UI', 'Airy teal tones, softer rounded cards', Icons.blur_on_rounded),
+                ])
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () { st.themeStyle = option.$1; st.save(); },
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: st.themeStyle == option.$1 ? Theme.of(c).colorScheme.primary : Theme.of(c).colorScheme.outlineVariant,
+                            width: st.themeStyle == option.$1 ? 2 : 1,
+                          ),
+                          color: st.themeStyle == option.$1 ? Theme.of(c).colorScheme.primaryContainer.withOpacity(0.45) : Colors.transparent,
+                        ),
+                        child: Row(children: [
+                          Icon(option.$4, color: Theme.of(c).colorScheme.primary, size: 25),
+                          const SizedBox(width: 12),
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(option.$2, style: const TextStyle(fontWeight: FontWeight.w700)),
+                            const SizedBox(height: 3),
+                            Text(option.$3, style: Theme.of(c).textTheme.bodySmall),
+                          ])),
+                          if (st.themeStyle == option.$1) Icon(Icons.check_circle_rounded, color: Theme.of(c).colorScheme.primary),
+                        ]),
+                      ),
+                    ),
+                  ),
+                if (st.themeStyle == 'colorful') ...[
+                  const SizedBox(height: 4),
+                  const Text('Accent colour', style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 10),
+                  Wrap(spacing: 12, runSpacing: 12, children: [
+                    for (final p in palette)
+                      InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: () { st.seed = p; st.save(); },
+                        child: CircleAvatar(
+                          radius: 19,
+                          backgroundColor: Color(p),
+                          child: st.seed == p ? const Icon(Icons.check_rounded, color: Colors.white, size: 20) : null,
+                        ),
+                      ),
+                  ]),
+                ],
+              ]),
+            ),
+          ),
+          Card(
+            child: Column(children: [
+              SwitchListTile(
+                secondary: const Icon(Icons.dark_mode_outlined),
+                title: const Text('Dark mode'),
+                subtitle: const Text('Use a darker colour scheme'),
+                value: st.dark,
+                onChanged: (v) { st.dark = v; st.save(); },
+              ),
+              const Divider(height: 1, indent: 16, endIndent: 16),
+              SwitchListTile(
+                secondary: const Icon(Icons.nightlight_round),
+                title: const Text('AMOLED black'),
+                subtitle: const Text('Pure black background (requires dark mode)'),
+                value: st.amoled,
+                onChanged: st.dark ? (v) { st.amoled = v; st.save(); } : null,
+              ),
             ]),
           ),
           if (st.tracker) ...[
