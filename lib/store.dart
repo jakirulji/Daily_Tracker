@@ -81,6 +81,12 @@ class Store extends ChangeNotifier {
   bool get tracker => profiles[cur]['t'] != 'prayer';
   String get pname => profiles[cur]['n'];
 
+  Store() {
+    // Keep the first frame safe even before SharedPreferences finishes loading.
+    profiles = defProfiles();
+    loadP(profiles[0]['d']);
+  }
+
   Future<void> load() async {
     p = await SharedPreferences.getInstance();
     final j = p.getString('data');
@@ -89,6 +95,7 @@ class Store extends ChangeNotifier {
       cur = 0;
       loadP(profiles[0]['d']);
     }
+    notifyListeners();
   }
 
   Map get pdata => {'subjects': subjects, 'tasks': tasks, 'logs': logs, 'notes': notes, 'goal': goal, 'exam': exam, 'examDate': examDate, 'cel': cel, 'modes': modes, 'mi': mi, 'faith': faith, 'prayers': prayers, 'pdone': pdone, 'oldCol': oldCol, 'exams': exams};
