@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'exam_widget.dart';
 import 'store.dart';
 import 'notify.dart';
 import 'ui.dart';
@@ -16,6 +17,7 @@ void main() async {
   await st.load();
   await tst.load();
   runApp(const App());
+  await ExamWidgetSync.update();
   Notif.rescheduleAll(st);
 }
 
