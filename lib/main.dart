@@ -14,10 +14,13 @@ import 'tuition.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Saved data is read before the first frame (fast). The Store also has safe defaults,
-  // so even if this fails or times out the app still opens.
+  // Load every persistent store before allowing the user to edit data. This
+  // prevents a late startup load from overwriting changes made on the first screen.
   try {
-    await st.load().timeout(const Duration(seconds: 5));
+    await st.load();
+  } catch (_) {}
+  try {
+    await tst.load();
   } catch (_) {}
   runApp(const App());
   unawaited(_initializeApp());
@@ -25,12 +28,7 @@ Future<void> main() async {
 
 Future<void> _initializeApp() async {
   // Never hold the native splash screen while plugins or local storage initialize.
-  try {
-    await tst.load().timeout(const Duration(seconds: 8));
-  } catch (_) {
-    // Tuition data is optional for the main app.
-  }
-
+  // Persistent stores are loaded before runApp; do not load them again here.
   try {
     await Notif.init().timeout(const Duration(seconds: 8));
   } catch (_) {
