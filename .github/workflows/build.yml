@@ -21,9 +21,43 @@ jobs:
           s = open(p, encoding='utf-8').read()
           s, count = re.subn(r'applicationId\s*=\s*"[^"]+"', 'applicationId = "com.daily_trackar.help"', s, count=1)
           if count != 1:
-              raise SystemExit('Could not set main applicationId')
+              raise SystemExit('Could not set test applicationId')
           open(p, 'w', encoding='utf-8').write(s)
-          print('MAIN applicationId = com.daily_trackar.help')
+          print('TEST applicationId = com.daily_trackar.help')
+          EOF
+      - name: Configure Android and Kotlin compatibility
+        run: |
+          python3 - <<'EOF'
+          import re
+          gp = 'android/gradle.properties'
+          props = open(gp, encoding='utf-8').read()
+          for k in ('android.newDsl', 'android.builtInKotlin', 'kotlin.jvm.target.validation.mode'):
+              props = re.sub(r'(?m)^' + re.escape(k) + r'=.*\n?', '', props)
+          props = props.rstrip('\n') + '\nandroid.newDsl=false\nandroid.builtInKotlin=false\nkotlin.jvm.target.validation.mode=warning\n'
+          open(gp, 'w', encoding='utf-8').write(props)
+
+          rp = 'android/build.gradle.kts'
+          r = open(rp, encoding='utf-8').read()
+          if 'JVM_17' not in r:
+              r += '\nsubprojects {\n    if (name != "app") {\n        tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {\n            compilerOptions {\n                jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)\n            }\n        }\n    }\n}\n'
+              open(rp, 'w', encoding='utf-8').write(r)
+
+          r = open(rp, encoding='utf-8').read()
+          if 'androidx.glance' not in r:
+              r += '\nsubprojects {\n    configurations.configureEach {\n        resolutionStrategy.eachDependency {\n            if (requested.group == "androidx.glance" && !requested.name.contains("wear")) {\n                useVersion("1.2.0")\n            }\n        }\n    }\n}\n'
+              open(rp, 'w', encoding='utf-8').write(r)
+
+          p = 'android/app/build.gradle.kts'
+          s = open(p, encoding='utf-8').read()
+          m = re.search(r'sourceCompatibility\s*=\s*JavaVersion\.VERSION_(\d+)', s)
+          jv = m.group(1) if m else '17'
+          if jv not in ('8', '11', '17', '21'):
+              jv = '17'
+          if re.search(r'kotlinOptions\s*\{[^{}]*\}', s):
+              s = re.sub(r'kotlinOptions\s*\{[^{}]*\}\s*', '', s)
+              s += '\nkotlin {\n    compilerOptions {\n        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.fromTarget("' + jv + '"))\n    }\n}\n'
+          open(p, 'w', encoding='utf-8').write(s)
+          print('newDsl=false, builtInKotlin=false, kotlin jvmTarget =', jv)
           EOF
       - run: flutter pub get
       - run: sed -i 's/android:label="[^"]*"/android:label="Daily Tracker"/' android/app/src/main/AndroidManifest.xml
@@ -66,6 +100,26 @@ jobs:
           open(gp, 'w', encoding='utf-8').write(g)
           print('patched manifest and gradle')
           EOF
+      - name: Register Android exam home-screen widgets
+        run: |
+          python3 - <<'EOF'
+          p = 'android/app/src/main/AndroidManifest.xml'
+          s = open(p, encoding='utf-8').read()
+          receivers = '''
+                  <receiver android:name="com.example.study_planner.ExamCompactWidgetProvider" android:exported="true">
+                      <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
+                      <meta-data android:name="android.appwidget.provider" android:resource="@xml/exam_widget_compact_info"/>
+                  </receiver>
+                  <receiver android:name="com.example.study_planner.ExamDetailedWidgetProvider" android:exported="true">
+                      <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
+                      <meta-data android:name="android.appwidget.provider" android:resource="@xml/exam_widget_detailed_info"/>
+                  </receiver>
+          '''
+          if 'ExamCompactWidgetProvider' not in s:
+              s = s.replace('</application>', receivers + '\n    </application>', 1)
+          open(p, 'w', encoding='utf-8').write(s)
+          print('registered compact and detailed exam widgets')
+          EOF
       - name: Setup signing
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -91,14 +145,53 @@ jobs:
           assert 'create("release")' in s and 'getByName("release")' in s
           open(p, 'w').write(s)
           EOF
+      - name: Preserve generic signatures for scheduled notifications
+        run: |
+          cat > android/app/proguard-rules.pro <<'EOF'
+          # flutter_local_notifications uses Gson TypeToken to restore scheduled notifications.
+          # R8 must retain generic type signatures for these classes.
+          -keepattributes Signature
+          -keep class com.google.gson.reflect.TypeToken { *; }
+          -keep class * extends com.google.gson.reflect.TypeToken
+          EOF
+          python3 - <<'EOF'
+          p = 'android/app/build.gradle.kts'
+          s = open(p, encoding='utf-8').read()
+          # Add the ProGuard rules to the release build type without changing signing.
+          build_types = s.find('buildTypes {')
+          if build_types < 0:
+              raise SystemExit('Could not find buildTypes block in app Gradle file')
+          release = s.find('release {', build_types)
+          if release < 0:
+              raise SystemExit('Could not find release build type in app Gradle file')
+          block_end = s.find('\n        }', release)
+          if block_end < 0:
+              raise SystemExit('Could not find end of release build type')
+          block = s[release:block_end]
+          rule = 'proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")'
+          if 'proguard-rules.pro' not in block:
+              s = s[:block_end] + '\n            ' + rule + s[block_end:]
+          open(p, 'w', encoding='utf-8').write(s)
+          print('Configured release ProGuard rules for Gson TypeToken signatures')
+          EOF
+      - name: Show generated Gradle files (for debugging)
+        run: |
+          cat android/gradle.properties
+          echo ---------- settings
+          cat android/settings.gradle.kts
+          echo ---------- root build
+          cat android/build.gradle.kts
+          echo ---------- app build
+          cat android/app/build.gradle.kts
       - run: flutter build apk --release
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       - name: Name MAIN APK
-        run: cp build/app/outputs/flutter-apk/app-release.apk "build/app/outputs/flutter-apk/Daily Tracker.apk"
+        run: cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/Daily Tracker.apk
       - uses: actions/upload-artifact@v4
         with:
           name: Daily Tracker-apk
           path: build/app/outputs/flutter-apk/Daily Tracker.apk
+          
