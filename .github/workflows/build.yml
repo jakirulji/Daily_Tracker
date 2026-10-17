@@ -58,6 +58,26 @@ jobs:
           open(gp, 'w', encoding='utf-8').write(g)
           print('patched manifest and gradle')
           EOF
+      - name: Register Android exam home-screen widgets
+        run: |
+          python3 - <<'EOF'
+          p = 'android/app/src/main/AndroidManifest.xml'
+          s = open(p, encoding='utf-8').read()
+          receivers = '''
+                  <receiver android:name="com.example.study_planner.ExamCompactWidgetProvider" android:exported="true">
+                      <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
+                      <meta-data android:name="android.appwidget.provider" android:resource="@xml/exam_widget_compact_info"/>
+                  </receiver>
+                  <receiver android:name="com.example.study_planner.ExamDetailedWidgetProvider" android:exported="true">
+                      <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
+                      <meta-data android:name="android.appwidget.provider" android:resource="@xml/exam_widget_detailed_info"/>
+                  </receiver>
+          '''
+          if 'ExamCompactWidgetProvider' not in s:
+              s = s.replace('</application>', receivers + '\n    </application>', 1)
+          open(p, 'w', encoding='utf-8').write(s)
+          print('registered compact and detailed exam widgets')
+          EOF
       - name: Setup signing
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
