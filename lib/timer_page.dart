@@ -28,6 +28,7 @@ class _TP extends State<TimerPage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    if (st.subjects.isNotEmpty) sub = st.subjects.first['n'] as String;
   }
 
   @override
@@ -136,13 +137,39 @@ class _TP extends State<TimerPage> with WidgetsBindingObserver {
         builder: (c, _) {
           if (left > total) left = total;
           final n = done == 0 ? 0 : (done - 1) % 4 + 1, col = st.col(who);
-          return ListView(padding: const EdgeInsets.all(24), children: [
-            Wrap(spacing: 8, children: [
+          final cs = Theme.of(c).colorScheme;
+          return ListView(padding: const EdgeInsets.fromLTRB(18, 16, 18, 28), children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [cs.primary, cs.tertiary], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                borderRadius: BorderRadius.circular(26),
+              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Container(width: 44, height: 44, decoration: BoxDecoration(color: Colors.white.withOpacity(.15), borderRadius: BorderRadius.circular(15)), child: Icon(brk ? Icons.coffee_rounded : Icons.bolt_rounded, color: Colors.white, size: 25)),
+                  const SizedBox(width: 12),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(brk ? 'RECOVERY TIME' : 'FOCUS SESSION', style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.4)),
+                    const SizedBox(height: 4),
+                    Text(run ? 'Stay in the zone' : 'Make this session count', style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w800)),
+                  ])),
+                ]),
+                const SizedBox(height: 12),
+                Text('Choose a subject and a timer mode, then press Start. Your completed focus time is saved to Stats.', style: const TextStyle(color: Colors.white70, height: 1.4, fontSize: 12)),
+              ]),
+            ),
+            const SizedBox(height: 18),
+            Text('TIMER MODE', style: TextStyle(fontSize: 11, letterSpacing: 1.1, fontWeight: FontWeight.w800, color: cs.outline)),
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, runSpacing: 8, children: [
               for (var i = 0; i < st.modes.length; i++)
                 ChoiceChip(label: Text('${st.modes[i]['n']} ${st.modes[i]['f']}/${st.modes[i]['b']}'), selected: i == st.mi, onSelected: (_) => pick(i)),
               ActionChip(avatar: const Icon(Icons.add, size: 18), label: const Text('Custom'), onPressed: addMode),
             ]),
-            const SizedBox(height: 12),
+            const SizedBox(height: 18),
+            Text('STUDY SUBJECT', style: TextStyle(fontSize: 11, letterSpacing: 1.1, fontWeight: FontWeight.w800, color: cs.outline)),
+            const SizedBox(height: 4),
             DropdownButton<String>(
               isExpanded: true,
               hint: const Text('Select category'),
