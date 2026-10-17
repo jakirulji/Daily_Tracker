@@ -3,6 +3,15 @@ import 'store.dart';
 
 class StatsPage extends StatelessWidget {
   const StatsPage({super.key});
+  Widget _statValue(String value, String label) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(value, style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 4),
+          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 10)),
+        ]),
+      );
+
   @override
   Widget build(BuildContext c) => ListenableBuilder(
         listenable: st,
@@ -27,8 +36,31 @@ class StatsPage extends StatelessWidget {
             }
           }
           final mon = DateTime(now.year, now.month, now.day - (now.weekday - 1) - 77);
-          return ListView(padding: const EdgeInsets.all(16), children: [
-            Text('Last 7 days (hours)', style: Theme.of(c).textTheme.titleMedium),
+          return ListView(padding: const EdgeInsets.fromLTRB(16, 14, 16, 28), children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [cs.primary, cs.tertiary], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                borderRadius: BorderRadius.circular(26),
+              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('YOUR STUDY JOURNEY', style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.4)),
+                const SizedBox(height: 8),
+                const Text('Progress, not perfection.', style: TextStyle(color: Colors.white, fontSize: 23, fontWeight: FontWeight.w900, letterSpacing: -.5)),
+                const SizedBox(height: 16),
+                Row(children: [
+                  Expanded(child: _statValue('${tot ~/ 60}h ${tot % 60}m', 'Focused this week')),
+                  Container(width: 1, height: 42, color: Colors.white24),
+                  Expanded(child: _statValue('$taskDone/$taskTotal', 'Tasks completed')),
+                  Container(width: 1, height: 42, color: Colors.white24),
+                  Expanded(child: _statValue('${st.streak} days', 'Current streak')),
+                ]),
+              ]),
+            ),
+            const SizedBox(height: 22),
+            Text('Last 7 days', style: Theme.of(c).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 4),
+            Text('Daily focus time · hours', style: TextStyle(color: cs.outline, fontSize: 12)),
             const SizedBox(height: 12),
             SizedBox(
               height: 170,
@@ -47,7 +79,7 @@ class StatsPage extends StatelessWidget {
               ]),
             ),
             const SizedBox(height: 20),
-            Text('Weekly summary', style: Theme.of(c).textTheme.titleMedium),
+            Text('Weekly breakdown', style: Theme.of(c).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
             const SizedBox(height: 8),
             Text('Total: ${tot ~/ 60}h ${tot % 60}m  •  Tasks done: $taskDone/$taskTotal'),
             Text('Best day: ${(best / 60).toStringAsFixed(1)}h  •  vs last week: ${tot >= prev ? '+' : '-'}${((tot - prev).abs() / 60).toStringAsFixed(1)}h'),
@@ -62,7 +94,8 @@ class StatsPage extends StatelessWidget {
                 ]),
               ),
             const SizedBox(height: 20),
-            Text('Last 12 weeks', style: Theme.of(c).textTheme.titleMedium),
+            Text('Consistency map', style: Theme.of(c).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+            Text('Last 12 weeks · darker means closer to your daily goal', style: TextStyle(fontSize: 12, color: cs.outline)),
             const SizedBox(height: 8),
             Center(
               child: Row(mainAxisSize: MainAxisSize.min, children: [
