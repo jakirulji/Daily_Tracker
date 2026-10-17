@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'store.dart';
 import 'tuition.dart';
 import 'exam_page.dart';
+import 'ui.dart';
 
 class HomeDashboardPage extends StatelessWidget {
   const HomeDashboardPage({super.key});
@@ -78,7 +79,13 @@ class HomeDashboardPage extends StatelessWidget {
                 return;
               }
               if (st.cur != trackerIndex) st.switchTo(trackerIndex);
-              st.goTab(tab);
+              if (tab == 1) {
+                Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => const ProfileTrackerScreen(isPrayer: false),
+                ));
+              } else {
+                st.goTab(tab);
+              }
             }
 
             void openPrayer() {
@@ -87,7 +94,9 @@ class HomeDashboardPage extends StatelessWidget {
                 return;
               }
               if (st.cur != prayerIndex) st.switchTo(prayerIndex);
-              st.goTab(1);
+              Navigator.push(context, MaterialPageRoute(
+                builder: (_) => const ProfileTrackerScreen(isPrayer: true),
+              ));
             }
 
             return ListView(
