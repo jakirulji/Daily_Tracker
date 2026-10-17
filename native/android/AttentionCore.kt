@@ -27,6 +27,15 @@ object AttentionCore {
     fun hasAccess(c: Context): Boolean =
         Build.VERSION.SDK_INT >= 23 && nm(c).isNotificationPolicyAccessGranted
 
+    /**
+     * Apps targeting Android 15+ (API 35) can no longer change the GLOBAL Do Not Disturb state.
+     * setInterruptionFilter()/setNotificationPolicy() then only switch / configure this app's own
+     * "mode" (an implicit AutomaticZenRule, listed in Settings > Modes). Turning it off means
+     * setInterruptionFilter(ALL) for that rule; other modes the user has on are untouched.
+     */
+    private fun ownMode(c: Context): Boolean =
+        Build.VERSION.SDK_INT >= 35 && c.applicationInfo.targetSdkVersion >= 35
+
     private fun alarmIntent(c: Context): PendingIntent {
         val i = Intent(c, AttentionEndReceiver::class.java).setAction(ACTION_END)
         return PendingIntent.getBroadcast(c, 7001, i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
@@ -72,6 +81,7 @@ object AttentionCore {
             .putBoolean("active", true)
             .putString("by", by)
             .putLong("endAt", endAt)
+            .putLong("startedAt", System.currentTimeMillis())
             .putInt("prevFilter", n.currentInterruptionFilter)
             .putInt("prevCats", p.priorityCategories)
             .putInt("prevCalls", p.priorityCallSenders)
@@ -122,16 +132,21 @@ object AttentionCore {
         try {
             if (hasAccess(c)) {
                 val n = nm(c)
-                n.setNotificationPolicy(
-                    NotificationManager.Policy(
-                        s.getInt("prevCats", 0),
-                        s.getInt("prevCalls", NotificationManager.Policy.PRIORITY_SENDERS_ANY),
-                        s.getInt("prevMsgs", NotificationManager.Policy.PRIORITY_SENDERS_ANY),
-                        s.getInt("prevFx", 0)
+                if (ownMode(c)) {
+                    // Android 15+: only our own mode; ALL = switch it off.
+                    if (!skipFilter) n.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL)
+                } else {
+                    n.setNotificationPolicy(
+                        NotificationManager.Policy(
+                            s.getInt("prevCats", 0),
+                            s.getInt("prevCalls", NotificationManager.Policy.PRIORITY_SENDERS_ANY),
+                            s.getInt("prevMsgs", NotificationManager.Policy.PRIORITY_SENDERS_ANY),
+                            s.getInt("prevFx", 0)
+                        )
                     )
-                )
-                if (!skipFilter) {
-                    n.setInterruptionFilter(s.getInt("prevFilter", NotificationManager.INTERRUPTION_FILTER_ALL))
+                    if (!skipFilter) {
+                        n.setInterruptionFilter(s.getInt("prevFilter", NotificationManager.INTERRUPTION_FILTER_ALL))
+                    }
                 }
             }
         } catch (_: Exception) {
@@ -160,7 +175,10 @@ object AttentionCore {
             val end = s.getLong("endAt", 0)
             if (end in 1..System.currentTimeMillis()) {
                 restore(c, s)
-            } else if (access && nm(c).currentInterruptionFilter == NotificationManager.INTERRUPTION_FILTER_ALL) {
+            } else if (access &&
+                System.currentTimeMillis() - s.getLong("startedAt", 0) > 4000 &&
+                nm(c).currentInterruptionFilter == NotificationManager.INTERRUPTION_FILTER_ALL
+            ) {
                 // The user switched Do Not Disturb off by hand: respect that, restore the policy only.
                 restore(c, s, skipFilter = true)
             } else if (!access) {

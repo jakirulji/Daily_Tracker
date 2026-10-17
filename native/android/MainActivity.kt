@@ -19,6 +19,7 @@ class MainActivity : FlutterActivity() {
     private fun openAccess(): String {
         val tries = listOf(
             Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS),
+            Intent("android.settings.NOTIFICATION_POLICY_ACCESS_DETAIL_SETTINGS", Uri.parse("package:$packageName")),
             Intent("android.settings.ZEN_MODE_PRIORITY_SETTINGS"),
             Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")),
             Intent(Settings.ACTION_SETTINGS)
@@ -27,7 +28,7 @@ class MainActivity : FlutterActivity() {
             try {
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 startActivity(intent)
-                return if (n == 0) "ok" else "fallback$n"
+                return if (n <= 1) "ok" else "fallback$n"
             } catch (e: Exception) {
             }
         }

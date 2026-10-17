@@ -74,13 +74,16 @@ class Attention extends ChangeNotifier {
 
 final att = Attention();
 
+const _manualPath = 'Open phone Settings > Apps > Special app access > "Modes access" '
+    '(older Android: "Do Not Disturb access"), pick this app (it is named "test") and turn it on.';
+
 /// Opens the DND access screen; if it cannot open the exact page, tells the user how to find it.
 Future<void> openDndAccess(BuildContext c) async {
   final r = await att.openAccessSettings();
   if (r == 'ok' || !c.mounted) return;
   final msg = r == 'missing'
       ? 'The Attention mode part is missing from this build.\n\nMake sure the native/ folder and the updated .github/workflows/build.yml are uploaded, run Build APK again, and reinstall.'
-      : 'Could not open that exact screen on this phone.\n\nOpen phone Settings and search for "Do Not Disturb access" (or Apps > Special app access > Do Not Disturb access), then switch on Daily Tracker.';
+      : 'Could not open that exact screen on this phone.\n\n$_manualPath';
   await showDialog(
     context: c,
     builder: (d) => AlertDialog(
@@ -97,9 +100,10 @@ Future<void> startAttention(BuildContext c) async {
     final go = await showDialog<bool>(
       context: c,
       builder: (d) => AlertDialog(
-        title: const Text('Allow Do Not Disturb access'),
-        content: const Text('Attention mode silences distracting notifications using Android\'s Do Not Disturb. '
-            'Android needs your permission once.\n\nOn the next screen, find Daily Tracker and switch it on, then come back.'),
+        title: const Text('Allow Modes access'),
+        content: const Text('Attention mode silences distracting notifications using Android\'s Modes / Do Not Disturb. '
+            'Android needs your permission once.\n\nOn the next screen, find this app and switch it on, then come back.\n\n'
+            'If nothing opens: $_manualPath'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')),
           FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Open settings')),
@@ -273,7 +277,7 @@ class _AS extends State<AttentionSettings> with WidgetsBindingObserver {
         builder: (c, _) => Column(children: [
           ListTile(
             leading: Icon(att.access ? Icons.check_circle_outline : Icons.lock_open_outlined),
-            title: const Text('Do Not Disturb access'),
+            title: const Text('Modes / Do Not Disturb access'),
             subtitle: Text(att.access ? 'Granted' : 'Not granted. Tap to allow (needed for Attention mode)'),
             onTap: att.access ? null : () => openDndAccess(c),
           ),

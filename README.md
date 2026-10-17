@@ -296,3 +296,13 @@ Rules
     attBreak on: stays on past focus end (+break length +5 min) and ends with the break.
 Unverified on real devices: VoIP calls (WhatsApp/Messenger/Telegram) passing DND depends on
 the app tagging its notification as a call; test it.
+
+Android 15+ / 16+ / 17 notes (Modes)
+  - Android 16+ renamed the permission to "Modes access" (Settings > Apps > Special app access).
+    Older Android: "Do Not Disturb access". Same API (isNotificationPolicyAccessGranted).
+  - Apps targeting API 35+ cannot change the GLOBAL DND state. setInterruptionFilter() only
+    switches this app's own mode (implicit AutomaticZenRule, visible in Settings > Modes).
+    AttentionCore.ownMode() handles this: restore = setInterruptionFilter(ALL) for our rule only;
+    the old save/restore of the user's policy is used only below API 35 / target < 35.
+  - status() ignores "DND is off" for 4 s after start (startedAt) to avoid a race.
+  - openAccess() tries 5 intents; the in-app dialog always prints the manual path too.
