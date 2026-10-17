@@ -77,6 +77,7 @@ class Store extends ChangeNotifier {
   bool dark = false, amoled = false;
   int seed = 0xFF5C6BC0, mi = 0, cur = 0, tab = 0;
   Timer? _rs;
+  Future<void> _saveQueue = Future<void>.value();
 
   bool get tracker => profiles[cur]['t'] != 'prayer';
   String get pname => profiles[cur]['n'];
@@ -166,12 +167,23 @@ class Store extends ChangeNotifier {
     _rs = Timer(const Duration(milliseconds: 600), () => Notif.rescheduleAll(this));
   }
 
-  void save({bool q = false}) {
-    p?.setString('data', json);
+  Future<void> save({bool q = false}) {
+    // Capture a snapshot now and serialize writes so rapid edits cannot race.
+    final snapshot = json;
+    _saveQueue = _saveQueue.catchError((_) {}).then((_) async {
+      try {
+        final prefs = p ?? await SharedPreferences.getInstance();
+        p = prefs;
+        await prefs.setString('data', snapshot);
+      } catch (_) {
+        // A later save may retry if storage initialization temporarily fails.
+      }
+    });
     if (!q) {
       notifyListeners();
       _resched();
     }
+    return _saveQueue;
   }
 
   void pick(String k) { sel = k; notifyListeners(); }
