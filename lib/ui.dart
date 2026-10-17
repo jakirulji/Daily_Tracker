@@ -2,6 +2,9 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'store.dart';
 import 'tuition.dart';
+import 'exam_page.dart';
+import 'today_page.dart';
+import 'prayer_page.dart';
 
 void snack(BuildContext c, String m) => ScaffoldMessenger.of(c).showSnackBar(SnackBar(content: Text(m)));
 
@@ -162,7 +165,15 @@ class AppDrawer extends StatelessWidget {
                   leading: Icon(st.profiles[i]['t'] == 'prayer' ? Icons.self_improvement : Icons.checklist),
                   title: Text(st.profiles[i]['n']),
                   selected: i == st.cur,
-                  onTap: () { st.switchTo(i); Navigator.pop(c); },
+                  onTap: () {
+                    st.switchTo(i);
+                    final isPrayer = st.profiles[i]['t'] == 'prayer';
+                    final nav = Navigator.of(c);
+                    nav.pop();
+                    nav.push(MaterialPageRoute(
+                      builder: (_) => ProfileTrackerScreen(isPrayer: isPrayer),
+                    ));
+                  },
                   trailing: PopupMenuButton<String>(
                     onSelected: (v) async {
                       if (v == 'del') {
@@ -175,6 +186,13 @@ class AppDrawer extends StatelessWidget {
                     itemBuilder: (_) => const [PopupMenuItem(value: 'ren', child: Text('Rename')), PopupMenuItem(value: 'del', child: Text('Delete'))],
                   ),
                 ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.event_note_rounded),
+                title: const Text('Exam Tracker'),
+                subtitle: const Text('Exam routine, syllabus & countdown'),
+                onTap: () { Navigator.pop(c); Navigator.push(c, MaterialPageRoute(builder: (_) => const ExamPage())); },
+              ),
               const Divider(),
               ListTile(
                 leading: const Icon(Icons.school),
@@ -190,6 +208,32 @@ class AppDrawer extends StatelessWidget {
               ListTile(leading: const Icon(Icons.add), title: const Text('Add profile'), onTap: () { Navigator.pop(c); addProfile(c); }),
             ]),
           ),
+        ),
+      );
+}
+
+
+/// A standalone tracker route, matching the open/back behaviour of Exam and Tuition.
+class ProfileTrackerScreen extends StatelessWidget {
+  final bool isPrayer;
+  const ProfileTrackerScreen({super.key, required this.isPrayer});
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: st,
+        builder: (context, _) => Scaffold(
+          appBar: AppBar(
+            title: Text(isPrayer ? 'Prayer Tracker' : '${st.pname} Tracker'),
+          ),
+          body: SafeArea(
+            child: isPrayer ? const PrayerPage() : const TodayPage(),
+          ),
+          floatingActionButton: isPrayer
+              ? null
+              : FloatingActionButton(
+                  onPressed: () => taskDialog(context),
+                  child: const Icon(Icons.add),
+                ),
         ),
       );
 }
