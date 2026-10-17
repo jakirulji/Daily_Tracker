@@ -104,6 +104,7 @@ class TStore extends ChangeNotifier {
   SharedPreferences? _p;
   List<Map> students = [];
   int sel = 0;
+  Future<void> _saveQueue = Future<void>.value();
 
   Map? get cur => students.isEmpty ? null : students[sel.clamp(0, students.length - 1).toInt()];
 
@@ -139,9 +140,20 @@ class TStore extends ChangeNotifier {
 
   String get json => jsonEncode({'v': 1, 'students': students});
 
-  void save() {
-    _p?.setString('tuition_data', json);
+  Future<void> save() {
+    // Serialize writes and initialize storage if a save happens before load completes.
+    final snapshot = json;
+    _saveQueue = _saveQueue.catchError((_) {}).then((_) async {
+      try {
+        final prefs = _p ?? await SharedPreferences.getInstance();
+        _p = prefs;
+        await prefs.setString('tuition_data', snapshot);
+      } catch (_) {
+        // Keep the app responsive; a subsequent save can retry.
+      }
+    });
     notifyListeners();
+    return _saveQueue;
   }
 
   void select(int i) {
