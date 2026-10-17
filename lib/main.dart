@@ -33,6 +33,7 @@ Future<void> _initializeApp() async {
 
   try {
     await Notif.init().timeout(const Duration(seconds: 8));
+    await Notif.askPermission();
   } catch (_) {
     // Notifications are optional; the app must still open without them.
   }
