@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'notify.dart';
+import 'persist.dart';
 
 String dk(DateTime d) =>
     '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
@@ -69,29 +70,39 @@ void setDone(Map e, String d, bool v) {
 }
 
 class Store extends ChangeNotifier {
-  late SharedPreferences p;
-  List<Map> profiles = [], subjects = [], tasks = [], modes = [], prayers = [];
+  SharedPreferences? p;
+  List<Map> profiles = [], subjects = [], tasks = [], modes = [], prayers = [], exams = [];
   Map logs = {}, notes = {}, pdone = {}, oldCol = {};
   double goal = 4;
   String exam = '', examDate = '', cel = '', faith = '', sel = dk(DateTime.now());
   bool dark = false, amoled = false;
+  String themeStyle = 'premium';
+  String themeMode = 'system';
   int seed = 0xFF5C6BC0, mi = 0, cur = 0, tab = 0;
   Timer? _rs;
+  Future<void> _saveQueue = Future<void>.value();
 
   bool get tracker => profiles[cur]['t'] != 'prayer';
   String get pname => profiles[cur]['n'];
 
+  // Usable defaults from the very first frame, so the UI never builds with an empty profile list.
+  Store() {
+    profiles = defProfiles();
+    loadP(profiles[0]['d']);
+  }
+
   Future<void> load() async {
-    p = await SharedPreferences.getInstance();
-    final j = p.getString('data');
+    final j = await Persist.read('data');
     if (j == null || !apply(j)) {
+      if (j != null) await Persist.keepBad('data', j);
       profiles = defProfiles();
       cur = 0;
       loadP(profiles[0]['d']);
     }
+    notifyListeners();
   }
 
-  Map get pdata => {'subjects': subjects, 'tasks': tasks, 'logs': logs, 'notes': notes, 'goal': goal, 'exam': exam, 'examDate': examDate, 'cel': cel, 'modes': modes, 'mi': mi, 'faith': faith, 'prayers': prayers, 'pdone': pdone, 'oldCol': oldCol};
+  Map get pdata => {'subjects': subjects, 'tasks': tasks, 'logs': logs, 'notes': notes, 'goal': goal, 'exam': exam, 'examDate': examDate, 'cel': cel, 'modes': modes, 'mi': mi, 'faith': faith, 'prayers': prayers, 'pdone': pdone, 'oldCol': oldCol, 'exams': exams};
 
   // Data of any profile (current one comes from live fields)
   Map dataOf(int i) => i == cur ? pdata : (profiles[i]['d'] as Map? ?? {});
@@ -112,12 +123,13 @@ class Store extends ChangeNotifier {
     faith = m['faith'] ?? '';
     prayers = List<Map>.from(m['prayers'] ?? []);
     pdone = Map.from(m['pdone'] ?? {});
+    exams = List<Map>.from(m['exams'] ?? []);
     oldCol = Map.from(m['oldCol'] ?? {});
   }
 
   String get json {
     profiles[cur]['d'] = pdata;
-    return jsonEncode({'profiles': profiles, 'cur': cur, 'dark': dark, 'amoled': amoled, 'seed': seed});
+    return jsonEncode({'profiles': profiles, 'cur': cur, 'dark': dark, 'amoled': amoled, 'seed': seed, 'themeStyle': themeStyle, 'themeMode': themeMode});
   }
 
   void _load(String j) {
@@ -135,6 +147,13 @@ class Store extends ChangeNotifier {
     dark = m['dark'] ?? false;
     amoled = m['amoled'] ?? false;
     seed = m['seed'] ?? seed;
+    final savedStyle = m['themeStyle'];
+    themeStyle = ['premium', 'colorful', 'glass'].contains(savedStyle) ? savedStyle as String : 'premium';
+    final savedMode = m['themeMode'];
+    // Older backups only stored the dark-mode boolean; preserve that preference.
+    themeMode = ['system', 'light', 'dark'].contains(savedMode)
+        ? savedMode as String
+        : (dark ? 'dark' : 'light');
     tab = 0;
     loadP(profiles[cur]['d'] ?? {});
   }
@@ -157,12 +176,25 @@ class Store extends ChangeNotifier {
     _rs = Timer(const Duration(milliseconds: 600), () => Notif.rescheduleAll(this));
   }
 
-  void save({bool q = false}) {
-    p.setString('data', json);
+  Future<void> save({bool q = false}) {
+    // Capture a snapshot now and serialize writes so rapid edits cannot race.
+    String? snapshot;
+    try {
+      snapshot = json;
+    } catch (e) {
+      Persist.lastError = 'could not encode data: $e';
+    }
+    if (snapshot != null) {
+      final data = snapshot;
+      _saveQueue = _saveQueue.catchError((_) {}).then((_) async {
+        await Persist.write('data', data);
+      });
+    }
     if (!q) {
       notifyListeners();
       _resched();
     }
+    return _saveQueue;
   }
 
   void pick(String k) { sel = k; notifyListeners(); }
