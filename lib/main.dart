@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'exam_widget.dart';
 import 'store.dart';
@@ -11,14 +12,37 @@ import 'settings_page.dart';
 import 'prayer_page.dart';
 import 'tuition.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  await Notif.init();
-  await st.load();
-  await tst.load();
   runApp(const App());
-  await ExamWidgetSync.update();
-  Notif.rescheduleAll(st);
+  unawaited(_initializeApp());
+}
+
+Future<void> _initializeApp() async {
+  // Never hold the native splash screen while plugins or local storage initialize.
+  try {
+    await st.load().timeout(const Duration(seconds: 8));
+  } catch (_) {
+    // Store starts with usable defaults; keep the app accessible if storage fails.
+  }
+  try {
+    await tst.load().timeout(const Duration(seconds: 8));
+  } catch (_) {
+    // Tuition data is optional for the main app.
+  }
+
+  try {
+    await Notif.init().timeout(const Duration(seconds: 8));
+  } catch (_) {
+    // Notifications are optional; the app must still open without them.
+  }
+
+  try {
+    await ExamWidgetSync.update().timeout(const Duration(seconds: 5));
+  } catch (_) {}
+  try {
+    await Notif.rescheduleAll(st).timeout(const Duration(seconds: 8));
+  } catch (_) {}
 }
 
 class App extends StatelessWidget {
