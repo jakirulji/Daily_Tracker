@@ -27,6 +27,11 @@ object DwbBridge {
                         result.success(true)
                     }
                     "hasOverlayPermission" -> result.success(Settings.canDrawOverlays(activity))
+                    "hasAccessibilityAccess" -> result.success(hasAccessibilityAccess(activity))
+                    "openAccessibilitySettings" -> {
+                        activity.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                        result.success(true)
+                    }
                     "openOverlaySettings" -> {
                         activity.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
                             data = android.net.Uri.parse("package:" + activity.packageName)
@@ -93,6 +98,12 @@ object DwbBridge {
                 result.error("DWB_ERROR", e.message ?: "Digital Wellbeing action failed", null)
             }
         }
+    }
+
+    private fun hasAccessibilityAccess(context: Context): Boolean {
+        val expected = ComponentName(context, DwbAccessibilityService::class.java).flattenToString()
+        val enabled = Settings.Secure.getString(context.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES).orEmpty()
+        return enabled.split(':').any { it.equals(expected, ignoreCase = true) }
     }
 
     private fun hasUsageAccess(context: Context): Boolean {
