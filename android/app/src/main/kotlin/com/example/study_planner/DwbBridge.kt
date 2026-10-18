@@ -46,12 +46,18 @@ object DwbBridge {
                     "configureBlocking" -> {
                         val enabled = call.argument<Boolean>("enabled") ?: false
                         val selected = call.argument<List<String>>("selectedPackages") ?: emptyList()
+                        val gentle = call.argument<List<String>>("gentlePackages") ?: emptyList()
+                        val gentleReminder = call.argument<Int>("gentleReminderMinutes") ?: 5
                         val limits = call.argument<Map<String, Int>>("limits") ?: emptyMap()
                         val prefs = activity.getSharedPreferences("dwb_blocking", Context.MODE_PRIVATE)
-                        val editor = prefs.edit().putBoolean("enabled", enabled).putStringSet("selectedPackages", selected.toSet())
+                        val editor = prefs.edit()
+                            .putBoolean("enabled", enabled && selected.isNotEmpty())
+                            .putStringSet("selectedPackages", selected.toSet())
+                            .putStringSet("gentlePackages", gentle.toSet())
+                            .putInt("gentleReminderMinutes", gentleReminder.coerceIn(0, 60))
                         limits.forEach { (pkg, minutes) -> editor.putInt("limit.$pkg", minutes.coerceIn(0, 1440)) }
                         editor.apply()
-                        if (enabled && selected.isNotEmpty()) {
+                        if ((enabled && selected.isNotEmpty()) || gentle.isNotEmpty()) {
                             val intent = Intent(activity, DwbSessionService::class.java).setAction(DwbSessionService.ACTION_CONFIGURE_BLOCKING)
                             if (android.os.Build.VERSION.SDK_INT >= 26) activity.startForegroundService(intent) else activity.startService(intent)
                         } else {
