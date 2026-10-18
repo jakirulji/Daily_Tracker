@@ -151,6 +151,7 @@ jobs:
               'android.permission.SYSTEM_ALERT_WINDOW',
               'android.permission.FOREGROUND_SERVICE',
               'android.permission.FOREGROUND_SERVICE_SPECIAL_USE',
+              'android.permission.QUERY_ALL_PACKAGES',
           ]
           for permission in permissions:
               if permission not in m:
