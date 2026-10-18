@@ -29,6 +29,7 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
   bool _loading = true;
   bool _usageAccess = false;
   bool _overlayAccess = false;
+  bool _accessibilityAccess = false;
   bool _pauseEnabled = true;
   bool _guiltMode = true;
   bool _overlayReminders = false;
@@ -129,15 +130,16 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
     try {
       final access = await _dwbChannel.invokeMethod<bool>('hasUsageAccess') ?? false;
       final overlay = await _dwbChannel.invokeMethod<bool>('hasOverlayPermission') ?? false;
+      final accessibility = await _dwbChannel.invokeMethod<bool>('hasAccessibilityAccess') ?? false;
       List<_UsageApp> apps = [];
       if (access) {
         final raw = await _dwbChannel.invokeListMethod<dynamic>('getUsageStats') ?? [];
         apps = raw.whereType<Map>().map(_UsageApp.fromMap).toList();
       }
       if (!mounted) return;
-      setState(() { _usageAccess = access; _overlayAccess = overlay; _apps = apps; _loading = false; });
+      setState(() { _usageAccess = access; _overlayAccess = overlay; _accessibilityAccess = accessibility; _apps = apps; _loading = false; });
       await _syncBlocking();
-      if (!_usageAccess || (_strictBlockingEnabled && !_overlayAccess)) {
+      if (!_usageAccess || ((_blockedPackages.isNotEmpty || _gentlePackages.isNotEmpty) && (!_overlayAccess || !_accessibilityAccess))) {
         WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _showPermissionPrompt(); });
       }
     } on PlatformException catch (e) {
@@ -151,35 +153,54 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
 
 
   Future<void> _showPermissionPrompt() async {
-    if (!mounted || _permissionDialogShowing || (_usageAccess && (!_permissionPromptForStrict || _overlayAccess))) return;
+    final hasSelectedMode = _blockedPackages.isNotEmpty || _gentlePackages.isNotEmpty;
+    final needAny = !_usageAccess || (_permissionPromptForStrict && (!_overlayAccess || !_accessibilityAccess)) ||
+        (hasSelectedMode && (!_overlayAccess || !_accessibilityAccess));
+    if (!mounted || _permissionDialogShowing || !needAny) return;
     _permissionDialogShowing = true;
     final needUsage = !_usageAccess;
+    final needOverlay = !needUsage && !_overlayAccess;
+    final needAccessibility = !needUsage && !needOverlay && !_accessibilityAccess;
     final choice = await showDialog<String>(
       context: context,
       barrierDismissible: true,
       builder: (dialogContext) => AlertDialog(
         icon: const Icon(Icons.admin_panel_settings_rounded, size: 38),
-        title: Text(needUsage ? 'Enable Usage Access' : 'Enable display over other apps'),
+        title: Text(needUsage
+          ? 'Enable Usage Access'
+          : needOverlay ? 'Enable display over other apps' : 'Enable Accessibility monitoring'),
         content: Text(needUsage
-          ? 'Daily Tracker needs Usage Access to calculate app screen time and enforce selected limits. In Android Settings, choose Daily Tracker and enable Usage Access.'
-          : 'Strict Block needs this permission to show the daily-limit screen. Gentle needs it to show the 10-second mindful pause and 5-minute reminder overlay.'),
+          ? 'DWB needs Usage Access to read app screen time and enforce selected limits.'
+          : needOverlay
+            ? 'DWB needs overlay permission to display the 10-second Gentle pause and the Strict limit screen over other apps.'
+            : 'Enable DWB app-use monitoring in Android Accessibility settings. It listens only for app/window changes (not screen text), so DWB can react immediately instead of waiting for the Usage Access polling interval.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext, 'later'), child: const Text('Not now')),
-          FilledButton.icon(onPressed: () => Navigator.pop(dialogContext, needUsage ? 'usage' : 'overlay'), icon: const Icon(Icons.settings_rounded), label: const Text('Open Settings')),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, needUsage ? 'usage' : needOverlay ? 'overlay' : 'accessibility'),
+            icon: const Icon(Icons.settings_rounded),
+            label: const Text('Open Settings'),
+          ),
         ],
       ),
     );
     _permissionDialogShowing = false;
     if (!mounted || choice == null || choice == 'later') return;
-    if (choice == 'usage') { await _openUsageSettings(); } else { await _openOverlaySettings(); }
+    if (choice == 'usage') {
+      await _openUsageSettings();
+    } else if (choice == 'overlay') {
+      await _openOverlaySettings();
+    } else {
+      await _openAccessibilitySettings();
+    }
   }
 
   Future<void> _setAppBlockMode(_UsageApp app, String mode) async {
-    if (mode != 'off' && (!_usageAccess || !_overlayAccess)) {
+    if (mode != 'off' && (!_usageAccess || !_overlayAccess || !_accessibilityAccess)) {
       _permissionPromptForStrict = true;
       await _showPermissionPrompt();
       await _refresh();
-      if (!_usageAccess || !_overlayAccess) { _permissionPromptForStrict = false; return; }
+      if (!_usageAccess || !_overlayAccess || !_accessibilityAccess) { _permissionPromptForStrict = false; return; }
       _permissionPromptForStrict = false;
     }
     setState(() {
@@ -331,6 +352,10 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
 
   Future<void> _openOverlaySettings() async {
     await _dwbChannel.invokeMethod<bool>('openOverlaySettings');
+  }
+
+  Future<void> _openAccessibilitySettings() async {
+    await _dwbChannel.invokeMethod<bool>('openAccessibilitySettings');
   }
 
   Future<void> _configureApp(_UsageApp app) async {
@@ -516,6 +541,14 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
                 text: _strictBlockingEnabled ? 'Strict blocking needs this permission to show a full-screen pause screen over selected apps.' : 'Optional for focus-session pause reminders. Strict app blocking requires this permission.',
                 action: 'Grant overlay',
                 onTap: _openOverlaySettings,
+              ),
+            if (!_accessibilityAccess)
+              _permissionCard(
+                icon: Icons.accessibility_new_rounded,
+                title: 'Enable fast app detection',
+                text: 'Recommended for Gentle and Strict modes. DWB will react to Android app/window changes instead of relying only on periodic Usage Access checks. Screen text is not read.',
+                action: 'Open Accessibility',
+                onTap: _openAccessibilitySettings,
               ),
             Card(
               child: Padding(
