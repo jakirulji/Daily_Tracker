@@ -5,6 +5,7 @@ import 'tuition.dart';
 import 'exam_page.dart';
 import 'today_page.dart';
 import 'prayer_page.dart';
+import 'wellbeing_page.dart';
 
 void snack(BuildContext c, String m) => ScaffoldMessenger.of(c).showSnackBar(SnackBar(content: Text(m)));
 
@@ -203,6 +204,13 @@ class AppDrawer extends StatelessWidget {
                   nav.pop();
                   nav.push(MaterialPageRoute(builder: (_) => const TuitionHome()));
                 },
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.self_improvement_rounded),
+                title: const Text('Digital Wellbeing'),
+                subtitle: const Text('Screen time, mindful pause & focus sessions'),
+                onTap: () { Navigator.pop(c); Navigator.push(c, MaterialPageRoute(builder: (_) => const WellbeingPage())); },
               ),
               const Divider(),
               ListTile(leading: const Icon(Icons.add), title: const Text('Add profile'), onTap: () { Navigator.pop(c); addProfile(c); }),
