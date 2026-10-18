@@ -182,6 +182,19 @@ class DwbSessionService : Service() {
         accessibilityForegroundAt = now
         if (old != pkg) {
             if (overlay != null && overlayPackage != pkg) removeOverlay()
+            val dayStart = java.util.Calendar.getInstance().apply {
+                set(java.util.Calendar.HOUR_OF_DAY, 0)
+                set(java.util.Calendar.MINUTE, 0)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }.timeInMillis
+            foregroundBaseUsageMs = runCatching {
+                val manager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+                manager.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, dayStart, now)
+                    .filter { it.packageName == pkg }
+                    .maxOfOrNull { it.totalTimeInForeground } ?: 0L
+            }.getOrDefault(0L)
+            foregroundPackage = pkg
             foregroundSince = now
             if (blockingMonitor) checkStrictBlocking()
         }
