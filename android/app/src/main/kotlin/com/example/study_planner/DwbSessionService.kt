@@ -104,8 +104,10 @@ class DwbSessionService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        val nm = getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(NotificationChannel(CHANNEL, "Digital Wellbeing", NotificationManager.IMPORTANCE_LOW))
+        if (Build.VERSION.SDK_INT >= 26) {
+            val nm = getSystemService(NotificationManager::class.java)
+            nm.createNotificationChannel(NotificationChannel(CHANNEL, "Digital Wellbeing", NotificationManager.IMPORTANCE_LOW))
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -339,7 +341,7 @@ class DwbSessionService : Service() {
     private fun buildNotification(text: String): Notification {
         val launch = packageManager.getLaunchIntentForPackage(packageName)
         val pi = launch?.let { PendingIntent.getActivity(this, 7301, it, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE) }
-        val builder = Notification.Builder(this, CHANNEL)
+        val builder = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, CHANNEL) else Notification.Builder(this)
         return builder.setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("Digital Wellbeing").setContentText(text).setOngoing(true)
             .apply { if (pi != null) setContentIntent(pi) }.build()
@@ -352,7 +354,8 @@ class DwbSessionService : Service() {
     private fun showNotification(title: String, text: String) {
         val launch = packageManager.getLaunchIntentForPackage(packageName)
         val pi = launch?.let { PendingIntent.getActivity(this, 7302, it, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE) }
-        val notification = Notification.Builder(this, CHANNEL).setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+        val builder = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, CHANNEL) else Notification.Builder(this)
+        val notification = builder.setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle(title).setContentText(text).setAutoCancel(true)
             .apply { if (pi != null) setContentIntent(pi) }.build()
         getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID + 1, notification)
