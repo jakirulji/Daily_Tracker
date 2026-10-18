@@ -262,11 +262,11 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
                       decoration: const InputDecoration(prefixIcon: Icon(Icons.search_rounded), hintText: 'Search installed apps', isDense: true),
                       onChanged: (value) => setSheet(() => search = value),
                     ),
-                    if (mode == 'strict' && (!_usageAccess || !_overlayAccess)) ...[
+                    if (!_usageAccess || !_overlayAccess || !_accessibilityAccess) ...[
                       const SizedBox(height: 8),
                       SizedBox(width: double.infinity, child: FilledButton.icon(
                         onPressed: () { Navigator.pop(sheetContext); _showPermissionPrompt(); },
-                        icon: const Icon(Icons.settings_rounded), label: const Text('Complete permissions'),
+                        icon: const Icon(Icons.settings_rounded), label: const Text('Complete monitoring permissions'),
                       )),
                     ],
                     const SizedBox(height: 4),
