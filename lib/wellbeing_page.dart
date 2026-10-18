@@ -190,9 +190,11 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
 
   Future<void> _openBlockSettings(String mode) async {
     if (mode == 'strict' && (!_usageAccess || !_overlayAccess)) {
+      _permissionPromptForStrict = true;
       await _showPermissionPrompt();
       await _refresh();
-      if (!_usageAccess || !_overlayAccess) return;
+      if (!_usageAccess || !_overlayAccess) { _permissionPromptForStrict = false; return; }
+      _permissionPromptForStrict = false;
     }
     if (!mounted) return;
     await showModalBottomSheet<void>(
