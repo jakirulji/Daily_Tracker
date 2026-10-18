@@ -239,6 +239,7 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
         'appName': app.label,
         'limitMinutes': _limits[app.packageName] ?? 30,
         'reminderMinutes': _reminderMinutes,
+        'overlayEnabled': _overlayReminders,
       });
       final launched = await _dwbChannel.invokeMethod<bool>('launchApp', {'packageName': app.packageName}) ?? false;
       if (!launched && mounted) {
