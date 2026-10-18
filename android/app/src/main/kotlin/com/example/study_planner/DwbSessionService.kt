@@ -215,7 +215,9 @@ class DwbSessionService : Service() {
                 gentleNextReminderAt.putIfAbsent(current, next)
             }
         }
-        gentleNextReminderAt.keys.toList().filter { it !in gentleSelected }.forEach { gentleNextReminderAt.remove(it) }
+        // Reset the per-app interval after switching away, as Dragon Launcher does.
+        gentleNextReminderAt.keys.toList().filter { it != current || it !in gentleSelected }
+            .forEach { gentleNextReminderAt.remove(it) }
 
         if (!canStrictBlock) return
 
@@ -361,10 +363,12 @@ class DwbSessionService : Service() {
                 setPadding(0, 0, 0, 20)
             }
             root.addView(message)
-            root.addView(Button(this).apply {
+            val continueButton = Button(this).apply {
                 text = "Continue"
+                isEnabled = false
                 setOnClickListener { removeOverlay() }
-            })
+            }
+            root.addView(continueButton)
             root.addView(Button(this).apply {
                 text = "Leave app"
                 setOnClickListener {
@@ -391,7 +395,8 @@ class DwbSessionService : Service() {
                 override fun run() {
                     if (overlay !== root) return
                     if (remaining <= 0) {
-                        removeOverlay()
+                        message.text = "Take a breath. Continue when you are ready."
+                        continueButton.isEnabled = true
                         return
                     }
                     message.text = "Pause for a moment before continuing.\nContinuing in $remaining seconds…"
