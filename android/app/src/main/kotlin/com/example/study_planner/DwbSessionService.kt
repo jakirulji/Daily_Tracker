@@ -67,8 +67,10 @@ class DwbSessionService : Service() {
             if (finished) return
             if (blockingMonitor) {
                 checkStrictBlocking()
-                handler.postDelayed(this, 1000L)
-                return
+                if (targetPackage.isEmpty()) {
+                    handler.postDelayed(this, 1000L)
+                    return
+                }
             }
             val now = System.currentTimeMillis()
             val current = currentForegroundPackage(now)
@@ -83,6 +85,14 @@ class DwbSessionService : Service() {
                 nextReminderAt = now + reminderMs
             }
             if (limitMs > 0 && elapsed >= limitMs) {
+                if (blockingMonitor) {
+                    showNotification("Focus session complete", "$appLabel reached its focus-session limit.")
+                    targetPackage = ""
+                    limitMs = 0L
+                    reminderMs = 0L
+                    handler.postDelayed(this, 1000L)
+                    return
+                }
                 finished = true
                 showLimitReached()
                 return
@@ -109,7 +119,9 @@ class DwbSessionService : Service() {
             handler.post(ticker)
             return START_STICKY
         }
-        blockingMonitor = false
+        val blockingPrefs = getSharedPreferences("dwb_blocking", Context.MODE_PRIVATE)
+        blockingMonitor = blockingPrefs.getBoolean("enabled", false) &&
+            !blockingPrefs.getStringSet("selectedPackages", emptySet()).isNullOrEmpty()
         targetPackage = intent?.getStringExtra(EXTRA_PACKAGE).orEmpty()
         appLabel = intent?.getStringExtra(EXTRA_LABEL) ?: targetPackage
         val limit = intent?.getIntExtra(EXTRA_LIMIT_MINUTES, 0) ?: 0
