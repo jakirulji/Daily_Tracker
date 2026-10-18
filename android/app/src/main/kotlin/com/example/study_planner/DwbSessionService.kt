@@ -44,6 +44,11 @@ class DwbSessionService : Service() {
         private const val REMINDER_CHANNEL = "dwb_reminders"
         private const val NOTIFICATION_ID = 7301
         private const val BLOCKING_NOTIFICATION_ID = 7303
+        @Volatile private var liveInstance: DwbSessionService? = null
+
+        fun onAccessibilityPackageChanged(packageName: String) {
+            liveInstance?.handleAccessibilityPackageChanged(packageName)
+        }
     }
 
     private val handler = Handler(Looper.getMainLooper())
@@ -63,6 +68,8 @@ class DwbSessionService : Service() {
     private var foregroundPackage: String? = null
     private var foregroundSince = 0L
     private var foregroundBaseUsageMs = 0L
+    @Volatile private var accessibilityForegroundPackage: String? = null
+    @Volatile private var accessibilityForegroundAt = 0L
     private val gentleNextReminderAt = HashMap<String, Long>()
     private var lastGentleForeground: String? = null
 
@@ -119,6 +126,7 @@ class DwbSessionService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        liveInstance = this
         if (Build.VERSION.SDK_INT >= 26) {
             val nm = getSystemService(NotificationManager::class.java)
             nm.createNotificationChannel(NotificationChannel(CHANNEL, "Digital Wellbeing", NotificationManager.IMPORTANCE_LOW))
@@ -162,6 +170,20 @@ class DwbSessionService : Service() {
             startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
         } else {
             startForeground(NOTIFICATION_ID, notification)
+        }
+    }
+
+    /** Called directly by AccessibilityService to avoid waiting for the UsageStats polling interval. */
+    private fun handleAccessibilityPackageChanged(pkg: String) {
+        if (pkg.isBlank() || pkg == packageName) return
+        val now = System.currentTimeMillis()
+        val old = accessibilityForegroundPackage
+        accessibilityForegroundPackage = pkg
+        accessibilityForegroundAt = now
+        if (old != pkg) {
+            foregroundPackage = pkg
+            foregroundSince = now
+            if (blockingMonitor) checkStrictBlocking()
         }
     }
 
@@ -299,6 +321,8 @@ class DwbSessionService : Service() {
     }.getOrDefault(pkg)
 
     private fun currentForegroundPackage(now: Long): String? {
+        val accessiblePkg = accessibilityForegroundPackage
+        if (!accessiblePkg.isNullOrBlank() && now - accessibilityForegroundAt <= 5000L) return accessiblePkg
         return try {
             val manager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
             val events = manager.queryEvents(now - 120000L, now)
