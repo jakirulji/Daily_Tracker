@@ -218,9 +218,10 @@ class DwbSessionService : Service() {
         } catch (_: Exception) { false }
     }
 
+    @Suppress("DEPRECATION")
     private fun appLabelFor(pkg: String): String = runCatching {
         val info = if (Build.VERSION.SDK_INT >= 33) packageManager.getApplicationInfo(pkg, android.content.pm.PackageManager.ApplicationInfoFlags.of(0L))
-                   else @Suppress("DEPRECATION") packageManager.getApplicationInfo(pkg, 0)
+                   else packageManager.getApplicationInfo(pkg, 0)
         packageManager.getApplicationLabel(info).toString()
     }.getOrDefault(pkg)
 
