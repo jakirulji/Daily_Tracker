@@ -208,7 +208,9 @@ class DwbSessionService : Service() {
             return
         }
         val canStrictBlock = strictEnabled && selected.isNotEmpty() && Settings.canDrawOverlays(this)
-        if (!canStrictBlock) removeOverlay()
+        if (!canStrictBlock) {
+            if (overlayPackage !in gentleSelected) removeOverlay()
+        }
 
         val now = System.currentTimeMillis()
         val previousForeground = foregroundPackage
@@ -228,7 +230,7 @@ class DwbSessionService : Service() {
             if (now >= next) {
                 val label = appLabelFor(current)
                 if (gentleOverlayReminders && Settings.canDrawOverlays(this)) {
-                    showGentleReminderOverlay(label, now - (next - gentleReminderMinutes * 60000L))
+                    showGentleReminderOverlay(current, label, now - (next - gentleReminderMinutes * 60000L))
                 } else {
                     showNotification("Take a mindful pause", "You have been using $label. Pause, then decide whether to continue.")
                 }
@@ -296,7 +298,7 @@ class DwbSessionService : Service() {
                 buildNotification("Daily limit reached for $lockedLabel. The pause screen will appear when it is opened again.")
             )
         } else {
-            removeOverlay()
+            if (overlayPackage !in gentleSelected) removeOverlay()
         }
     }
 
@@ -436,7 +438,7 @@ class DwbSessionService : Service() {
     }
 
     /** Dragon Launcher-style transient reminder card; Gentle never blocks the app. */
-    private fun showGentleReminderOverlay(label: String, elapsedMs: Long) {
+    private fun showGentleReminderOverlay(pkg: String, label: String, elapsedMs: Long) {
         if (overlay != null || !Settings.canDrawOverlays(this)) return
         try {
             val card = LinearLayout(this).apply {
@@ -470,7 +472,7 @@ class DwbSessionService : Service() {
                 PixelFormat.TRANSLUCENT
             ).apply { gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL }
             overlay = card
-            overlayPackage = label
+            overlayPackage = pkg
             windowManager?.addView(card, lp)
             handler.postDelayed({ if (overlay === card) removeOverlay() }, 7000L)
         } catch (_: Exception) {
