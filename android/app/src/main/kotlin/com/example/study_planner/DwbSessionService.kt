@@ -30,6 +30,7 @@ class DwbSessionService : Service() {
         const val EXTRA_LABEL = "dwb_label"
         const val EXTRA_LIMIT_MINUTES = "dwb_limit_minutes"
         const val EXTRA_REMINDER_MINUTES = "dwb_reminder_minutes"
+        const val EXTRA_OVERLAY_ENABLED = "dwb_overlay_enabled"
         private const val CHANNEL = "dwb_session"
         private const val NOTIFICATION_ID = 7301
     }
@@ -39,6 +40,7 @@ class DwbSessionService : Service() {
     private var appLabel = "App"
     private var limitMs = 0L
     private var reminderMs = 0L
+    private var overlayEnabled = false
     private var startedAt = 0L
     private var nextReminderAt = Long.MAX_VALUE
     private var lastTargetSeenAt = 0L
@@ -82,6 +84,7 @@ class DwbSessionService : Service() {
         appLabel = intent?.getStringExtra(EXTRA_LABEL) ?: targetPackage
         val limit = intent?.getIntExtra(EXTRA_LIMIT_MINUTES, 0) ?: 0
         val reminder = intent?.getIntExtra(EXTRA_REMINDER_MINUTES, 0) ?: 0
+        overlayEnabled = intent?.getBooleanExtra(EXTRA_OVERLAY_ENABLED, false) ?: false
         limitMs = limit.coerceAtLeast(0) * 60000L
         reminderMs = reminder.coerceAtLeast(0) * 60000L
         startedAt = System.currentTimeMillis()
@@ -118,7 +121,7 @@ class DwbSessionService : Service() {
 
     private fun showLimitReached() {
         showNotification("Time limit reached", "Your $appLabel session has reached its limit. Tap to return to Daily Tracker.")
-        if (Settings.canDrawOverlays(this)) {
+        if (overlayEnabled && Settings.canDrawOverlays(this)) {
             try {
                 val root = LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
@@ -167,7 +170,7 @@ class DwbSessionService : Service() {
             } catch (_: Exception) { }
         }
         handler.removeCallbacks(ticker)
-        if (!Settings.canDrawOverlays(this)) stopSelf()
+        if (!overlayEnabled || !Settings.canDrawOverlays(this)) stopSelf()
     }
 
     private fun buildNotification(text: String): Notification {
