@@ -215,11 +215,11 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
   }
 
   Future<void> _openBlockSettings(String mode) async {
-    if (mode != 'off' && (!_usageAccess || !_overlayAccess)) {
+    if (mode != 'off' && (!_usageAccess || !_overlayAccess || !_accessibilityAccess)) {
       _permissionPromptForStrict = true;
       await _showPermissionPrompt();
       await _refresh();
-      if (!_usageAccess || !_overlayAccess) {
+      if (!_usageAccess || !_overlayAccess || !_accessibilityAccess) {
         _permissionPromptForStrict = false;
         return;
       }
