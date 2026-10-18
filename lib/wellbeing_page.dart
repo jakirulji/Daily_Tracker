@@ -69,7 +69,7 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
     setState(() {
       _pauseEnabled = p.getBool('dwb.pauseEnabled') ?? true;
       _guiltMode = p.getBool('dwb.guiltMode') ?? true;
-      _overlayReminders = p.getBool('dwb.overlayReminders') ?? false;
+      _overlayReminders = p.getBool('dwb.overlayReminders') ?? true;
       _strictBlockingEnabled = p.getBool('dwb.strictBlockingEnabled') ?? false;
       _pauseSeconds = p.getInt('dwb.pauseSeconds') ?? 10;
       _reminderMinutes = p.getInt('dwb.reminderMinutes') ?? 5;
@@ -115,6 +115,9 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
         'selectedPackages': _blockedPackages.toList(),
         'gentlePackages': _gentlePackages.toList(),
         'gentleReminderMinutes': _reminderMinutes,
+        'gentlePauseEnabled': _pauseEnabled,
+        'gentlePauseSeconds': _pauseSeconds,
+        'gentleOverlayReminders': _overlayReminders,
         'limits': _limits.map((key, value) => MapEntry(key, value)),
       });
     } on PlatformException {
