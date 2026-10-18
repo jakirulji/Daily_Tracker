@@ -177,8 +177,43 @@ jobs:
           '''
           if 'DwbSessionService' not in m:
               m = m.replace('</application>', service + '\n    </application>', 1)
+          accessibility_service = '''
+                  <service
+                      android:name="com.example.study_planner.DwbAccessibilityService"
+                      android:label="DWB app-use monitoring"
+                      android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.accessibilityservice.AccessibilityService"/>
+                      </intent-filter>
+                      <meta-data
+                          android:name="android.accessibilityservice"
+                          android:resource="@xml/dwb_accessibility_service"/>
+                  </service>
+          '''
+          if 'DwbAccessibilityService' not in m:
+              m = m.replace('</application>', accessibility_service + '\n    </application>', 1)
           open(p, 'w', encoding='utf-8').write(m)
-          print('registered DWB method channel, Usage Access, overlay and focus-session service')
+          import os
+          os.makedirs('android/app/src/main/res/xml', exist_ok=True)
+          with open('android/app/src/main/res/xml/dwb_accessibility_service.xml', 'w', encoding='utf-8') as f:
+              f.write('''<?xml version="1.0" encoding="utf-8"?>
+          <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+              android:accessibilityEventTypes="typeWindowStateChanged|typeWindowsChanged"
+              android:accessibilityFeedbackType="feedbackGeneric"
+              android:notificationTimeout="0"
+              android:canRetrieveWindowContent="false"
+              android:description="@string/dwb_accessibility_description" />
+          ''')
+          values = 'android/app/src/main/res/values'
+          os.makedirs(values, exist_ok=True)
+          with open(os.path.join(values, 'dwb_accessibility_strings.xml'), 'w', encoding='utf-8') as f:
+              f.write('''<?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <string name="dwb_accessibility_description">Detects which app is in the foreground to show your selected Gentle pause or enforce Strict daily limits. DWB does not read screen text or send app usage data.</string>
+          </resources>
+          ''')
+          print('registered DWB foreground service and AccessibilityService for fast app-switch detection')
           PY
       - name: Register Android exam home-screen widgets
         run: |
