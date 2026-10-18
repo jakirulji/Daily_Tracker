@@ -580,15 +580,10 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
                         icon: Icon(_pausedPackages.contains(app.packageName) ? Icons.pause_circle_filled_rounded : Icons.pause_circle_outline_rounded,
                             color: _pausedPackages.contains(app.packageName) ? cs.primary : cs.onSurfaceVariant),
                       ),
-                      PopupMenuButton<String>(
-                        tooltip: 'Choose block mode',
-                        initialValue: _blockedPackages.contains(app.packageName) ? 'strict' : (_gentlePackages.contains(app.packageName) ? 'gentle' : 'off'),
-                        onSelected: (mode) => _setAppBlockMode(app, mode),
-                        itemBuilder: (_) => const [
-                          PopupMenuItem(value: 'off', child: ListTile(dense: true, leading: Icon(Icons.block_outlined), title: Text('Off'))),
-                          PopupMenuItem(value: 'strict', child: ListTile(dense: true, leading: Icon(Icons.lock_outline_rounded), title: Text('Strict Block'))),
-                          PopupMenuItem(value: 'gentle', child: ListTile(dense: true, leading: Icon(Icons.spa_outlined), title: Text('Gentle Block'))),
-                        ],
+                      Tooltip(
+                        message: _blockedPackages.contains(app.packageName)
+                          ? 'Selected in Strict Block'
+                          : (_gentlePackages.contains(app.packageName) ? 'Selected in Gentle Block' : 'Not selected for blocking'),
                         child: Padding(padding: const EdgeInsets.all(8), child: Icon(
                           _blockedPackages.contains(app.packageName) ? Icons.lock_rounded : (_gentlePackages.contains(app.packageName) ? Icons.spa_rounded : Icons.shield_outlined),
                           color: _blockedPackages.contains(app.packageName) ? cs.error : (_gentlePackages.contains(app.packageName) ? cs.primary : cs.onSurfaceVariant))),
