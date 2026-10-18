@@ -349,7 +349,7 @@ class DwbSessionService : Service() {
     /**
      * Best-effort mindful pause when a Gentle app becomes foreground.
      * Android does not let an ordinary app intercept another launch before it starts;
-     * this overlay appears immediately after Usage Access detects the foreground app.
+     * AccessibilityService triggers this as soon as Android reports the foreground app; Usage Access polling remains a fallback.
      */
     private fun showGentlePauseOverlay(pkg: String, label: String, seconds: Int) {
         if (overlay != null || !Settings.canDrawOverlays(this)) return
