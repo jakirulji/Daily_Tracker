@@ -11,6 +11,7 @@ import 'notify.dart';
 import 'ui.dart';
 import 'exam_page.dart';
 import 'appearance_page.dart';
+import 'wellbeing_page.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -70,6 +71,15 @@ class SettingsPage extends StatelessWidget {
               onTap: () => Navigator.push(c, MaterialPageRoute(builder: (_) => const ExamPage())),
             ),
           ],
+          Card(
+            child: ListTile(
+              leading: Icon(Icons.self_improvement_rounded, color: Theme.of(c).colorScheme.primary, size: 28),
+              title: const Text('Digital Wellbeing', style: TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: const Text('Screen time, mindful pause & focus sessions'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.push(c, MaterialPageRoute(builder: (_) => const WellbeingPage())),
+            ),
+          ),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.notifications_active_outlined),
