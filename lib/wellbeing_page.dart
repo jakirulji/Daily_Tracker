@@ -90,6 +90,7 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
       }
     });
     await _syncBlocking();
+    await _refresh();
   }
 
   Future<void> _saveSettings() async {
