@@ -162,7 +162,7 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
         title: Text(needUsage ? 'Enable Usage Access' : 'Enable display over other apps'),
         content: Text(needUsage
           ? 'Daily Tracker needs Usage Access to calculate app screen time and enforce selected limits. In Android Settings, choose Daily Tracker and enable Usage Access.'
-          : 'Strict Block needs Display over other apps permission to show its pause screen when a selected app reaches its daily limit.'),
+          : 'Strict Block needs this permission to show the daily-limit screen. Gentle needs it to show the 10-second mindful pause and 5-minute reminder overlay.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext, 'later'), child: const Text('Not now')),
           FilledButton.icon(onPressed: () => Navigator.pop(dialogContext, needUsage ? 'usage' : 'overlay'), icon: const Icon(Icons.settings_rounded), label: const Text('Open Settings')),
@@ -175,7 +175,7 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
   }
 
   Future<void> _setAppBlockMode(_UsageApp app, String mode) async {
-    if (mode == 'strict' && (!_usageAccess || !_overlayAccess)) {
+    if (mode != 'off' && (!_usageAccess || !_overlayAccess)) {
       _permissionPromptForStrict = true;
       await _showPermissionPrompt();
       await _refresh();
@@ -194,7 +194,7 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
   }
 
   Future<void> _openBlockSettings(String mode) async {
-    if (mode == 'strict' && (!_usageAccess || !_overlayAccess)) {
+    if (mode != 'off' && (!_usageAccess || !_overlayAccess)) {
       _permissionPromptForStrict = true;
       await _showPermissionPrompt();
       await _refresh();
