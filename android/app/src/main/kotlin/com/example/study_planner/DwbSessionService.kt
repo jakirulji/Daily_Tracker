@@ -61,6 +61,7 @@ class DwbSessionService : Service() {
     private var blockingMonitor = false
     private var foregroundPackage: String? = null
     private var foregroundSince = 0L
+    private var foregroundBaseUsageMs = 0L
 
     private val ticker = object : Runnable {
         override fun run() {
@@ -178,7 +179,11 @@ class DwbSessionService : Service() {
             }
         }
 
+        val previousForeground = foregroundPackage
         val current = currentForegroundPackage(now)
+        if (current != previousForeground) {
+            foregroundBaseUsageMs = current?.let { usedMs[it] ?: 0L } ?: 0L
+        }
         var lockedPackage: String? = null
         var lockedLabel = "App"
         for (pkg in selected) {
@@ -195,10 +200,11 @@ class DwbSessionService : Service() {
                 continue
             }
             var used = usedMs[pkg] ?: 0L
-            // UsageStats can lag while an app remains foregrounded. Add the
-            // current foreground interval until Android publishes it in stats.
+            // UsageStats can lag while an app remains foregrounded. Compare its
+            // total with the baseline plus the live foreground interval instead
+            // of blindly adding time (which could double-count updated stats).
             if (current == pkg && foregroundSince > 0L) {
-                used += (now - foregroundSince).coerceAtLeast(0L)
+                used = maxOf(used, foregroundBaseUsageMs + (now - foregroundSince).coerceAtLeast(0L))
             }
             if (used >= limitMinutes * 60000L) {
                 prefs.edit().putString(lockKey, dayKey).apply()
