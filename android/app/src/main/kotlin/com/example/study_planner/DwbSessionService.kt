@@ -41,6 +41,7 @@ class DwbSessionService : Service() {
         const val EXTRA_OVERLAY_ENABLED = "dwb_overlay_enabled"
         const val ACTION_CONFIGURE_BLOCKING = "com.dailytracker.dwb.CONFIGURE_BLOCKING"
         private const val CHANNEL = "dwb_session"
+        private const val REMINDER_CHANNEL = "dwb_reminders"
         private const val NOTIFICATION_ID = 7301
         private const val BLOCKING_NOTIFICATION_ID = 7303
     }
@@ -63,6 +64,7 @@ class DwbSessionService : Service() {
     private var foregroundSince = 0L
     private var foregroundBaseUsageMs = 0L
     private val gentleNextReminderAt = HashMap<String, Long>()
+    private var lastGentleForeground: String? = null
 
     private val ticker = object : Runnable {
         override fun run() {
@@ -120,6 +122,7 @@ class DwbSessionService : Service() {
         if (Build.VERSION.SDK_INT >= 26) {
             val nm = getSystemService(NotificationManager::class.java)
             nm.createNotificationChannel(NotificationChannel(CHANNEL, "Digital Wellbeing", NotificationManager.IMPORTANCE_LOW))
+            nm.createNotificationChannel(NotificationChannel(REMINDER_CHANNEL, "Mindful pause reminders", NotificationManager.IMPORTANCE_HIGH))
         }
     }
 
@@ -167,7 +170,10 @@ class DwbSessionService : Service() {
         val strictEnabled = prefs.getBoolean("enabled", false)
         val selected = prefs.getStringSet("selectedPackages", emptySet())?.toSet().orEmpty()
         val gentleSelected = prefs.getStringSet("gentlePackages", emptySet())?.toSet().orEmpty()
-        val gentleReminderMinutes = prefs.getInt("gentleReminderMinutes", 5).coerceIn(0, 60)
+        val gentleReminderMinutes = prefs.getInt("gentleReminderMinutes", 5).coerceIn(1, 60)
+        val gentlePauseEnabled = prefs.getBoolean("gentlePauseEnabled", true)
+        val gentlePauseSeconds = prefs.getInt("gentlePauseSeconds", 10).coerceIn(0, 60)
+        val gentleOverlayReminders = prefs.getBoolean("gentleOverlayReminders", true)
 
         if (!hasUsageAccess()) {
             removeOverlay()
@@ -186,18 +192,30 @@ class DwbSessionService : Service() {
         val previousForeground = foregroundPackage
         val current = currentForegroundPackage(now)
 
-        // Gentle mode only sends reminders. It never displays the strict blocking overlay.
-        if (gentleReminderMinutes > 0 && current != null && current in gentleSelected) {
+        // Gentle mode is independent from Strict: a first-open pause and periodic reminders,
+        // but never the daily-limit blocking overlay.
+        if (current != lastGentleForeground) {
+            lastGentleForeground = current
+            if (current != null && current in gentleSelected && gentlePauseEnabled &&
+                gentlePauseSeconds > 0 && Settings.canDrawOverlays(this)) {
+                showGentlePauseOverlay(current, appLabelFor(current), gentlePauseSeconds)
+            }
+        }
+        if (current != null && current in gentleSelected) {
             val next = gentleNextReminderAt[current] ?: (now + gentleReminderMinutes * 60000L)
             if (now >= next) {
-                showNotification("Take a mindful pause", "You have been using ${appLabelFor(current)}. Pause, then decide whether to continue.")
+                val label = appLabelFor(current)
+                if (gentleOverlayReminders && Settings.canDrawOverlays(this)) {
+                    showGentleReminderOverlay(label, now - (next - gentleReminderMinutes * 60000L))
+                } else {
+                    showNotification("Take a mindful pause", "You have been using $label. Pause, then decide whether to continue.")
+                }
                 gentleNextReminderAt[current] = now + gentleReminderMinutes * 60000L
             } else {
                 gentleNextReminderAt.putIfAbsent(current, next)
             }
-        } else if (current != null) {
-            gentleNextReminderAt.remove(current)
         }
+        gentleNextReminderAt.keys.toList().filter { it !in gentleSelected }.forEach { gentleNextReminderAt.remove(it) }
 
         if (!canStrictBlock) return
 
@@ -302,6 +320,136 @@ class DwbSessionService : Service() {
         } catch (_: Exception) { foregroundPackage }
     }
 
+    /**
+     * Best-effort mindful pause when a Gentle app becomes foreground.
+     * Android does not let an ordinary app intercept another launch before it starts;
+     * this overlay appears immediately after Usage Access detects the foreground app.
+     */
+    private fun showGentlePauseOverlay(pkg: String, label: String, seconds: Int) {
+        if (overlay != null || !Settings.canDrawOverlays(this)) return
+        try {
+            val root = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                setPadding(48, 64, 48, 64)
+                background = GradientDrawable().apply {
+                    setColor(0xF51B2030.toInt())
+                    cornerRadius = 32f
+                    setStroke(2, 0xFF00CEC9.toInt())
+                }
+            }
+            root.addView(TextView(this).apply {
+                text = "TAKE A BREATH"
+                setTextColor(0xFF68F0D5.toInt())
+                textSize = 14f
+                typeface = Typeface.DEFAULT_BOLD
+                gravity = Gravity.CENTER
+            })
+            root.addView(TextView(this).apply {
+                text = label
+                setTextColor(0xFFFFFFFF.toInt())
+                textSize = 26f
+                typeface = Typeface.DEFAULT_BOLD
+                gravity = Gravity.CENTER
+                setPadding(0, 18, 0, 12)
+            })
+            val message = TextView(this).apply {
+                text = "Pause for a moment before continuing."
+                setTextColor(0xFFE2E8F0.toInt())
+                textSize = 16f
+                gravity = Gravity.CENTER
+                setPadding(0, 0, 0, 20)
+            }
+            root.addView(message)
+            root.addView(Button(this).apply {
+                text = "Continue"
+                setOnClickListener { removeOverlay() }
+            })
+            root.addView(Button(this).apply {
+                text = "Leave app"
+                setOnClickListener {
+                    removeOverlay()
+                    startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                }
+            })
+            windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+            val type = if (Build.VERSION.SDK_INT >= 26) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else WindowManager.LayoutParams.TYPE_PHONE
+            val lp = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT,
+                type,
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                PixelFormat.TRANSLUCENT
+            ).apply { gravity = Gravity.CENTER }
+            overlay = root
+            overlayPackage = pkg
+            windowManager?.addView(root, lp)
+
+            var remaining = seconds
+            val countdown = object : Runnable {
+                override fun run() {
+                    if (overlay !== root) return
+                    if (remaining <= 0) {
+                        removeOverlay()
+                        return
+                    }
+                    message.text = "Pause for a moment before continuing.\nContinuing in $remaining seconds…"
+                    remaining--
+                    handler.postDelayed(this, 1000L)
+                }
+            }
+            handler.post(countdown)
+        } catch (_: Exception) {
+            overlay = null
+            overlayPackage = ""
+        }
+    }
+
+    /** Dragon Launcher-style transient reminder card; Gentle never blocks the app. */
+    private fun showGentleReminderOverlay(label: String, elapsedMs: Long) {
+        if (overlay != null || !Settings.canDrawOverlays(this)) return
+        try {
+            val card = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(44, 32, 44, 32)
+                background = GradientDrawable().apply {
+                    setColor(0xF51B2030.toInt())
+                    cornerRadius = 28f
+                    setStroke(2, 0xFF6C5CE7.toInt())
+                }
+                addView(TextView(this@DwbSessionService).apply {
+                    text = "Mindful pause · $label"
+                    setTextColor(0xFFFFFFFF.toInt())
+                    textSize = 18f
+                    typeface = Typeface.DEFAULT_BOLD
+                })
+                addView(TextView(this@DwbSessionService).apply {
+                    text = "You have been using this app for ${formatTime(elapsedMs)}. Pause, then decide whether to continue."
+                    setTextColor(0xFFE2E8F0.toInt())
+                    textSize = 14f
+                    setPadding(0, 12, 0, 0)
+                })
+            }
+            windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+            val type = if (Build.VERSION.SDK_INT >= 26) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else WindowManager.LayoutParams.TYPE_PHONE
+            val lp = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                type,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                PixelFormat.TRANSLUCENT
+            ).apply { gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL }
+            overlay = card
+            overlayPackage = label
+            windowManager?.addView(card, lp)
+            handler.postDelayed({ if (overlay === card) removeOverlay() }, 7000L)
+        } catch (_: Exception) {
+            overlay = null
+            overlayPackage = ""
+        }
+    }
+
     private fun showBlockingOverlay(pkg: String, label: String) {
         if (overlay != null && overlayPackage == pkg) return
         removeOverlay()
@@ -393,7 +541,7 @@ class DwbSessionService : Service() {
     private fun showNotification(title: String, text: String) {
         val launch = packageManager.getLaunchIntentForPackage(packageName)
         val pi = launch?.let { PendingIntent.getActivity(this, 7302, it, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE) }
-        val builder = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, CHANNEL) else Notification.Builder(this)
+        val builder = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, REMINDER_CHANNEL) else Notification.Builder(this)
         val notification = builder.setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle(title).setContentText(text).setAutoCancel(true)
             .apply { if (pi != null) setContentIntent(pi) }.build()
