@@ -53,6 +53,7 @@ object DwbBridge {
                             putExtra(DwbSessionService.EXTRA_LABEL, label)
                             putExtra(DwbSessionService.EXTRA_LIMIT_MINUTES, limit)
                             putExtra(DwbSessionService.EXTRA_REMINDER_MINUTES, reminder)
+                            putExtra(DwbSessionService.EXTRA_OVERLAY_ENABLED, call.argument<Boolean>("overlayEnabled") ?: false)
                         }
                         if (android.os.Build.VERSION.SDK_INT >= 26) activity.startForegroundService(intent) else activity.startService(intent)
                         result.success(true)
