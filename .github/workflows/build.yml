@@ -13,7 +13,7 @@ jobs:
         with:
           channel: stable
       - run: flutter create . --project-name study_planner --platforms=android
-      - name: Set MAIN app version
+      - name: Set DWB app version
         run: |
           python3 - <<'PY'
           p = 'android/app/build.gradle.kts'
@@ -30,19 +30,19 @@ jobs:
           if not found_code or not found_name:
               raise SystemExit('Could not set Android versionCode/versionName')
           open(p, 'w', encoding='utf-8').write('\n'.join(lines) + '\n')
-          print('MAIN app version = 1.0 (versionCode 1)')
+          print('DWB app version = 1.0 (versionCode 1)')
           PY
-      - name: Configure MAIN app identity
+      - name: Configure DWB app identity
         run: |
           python3 - <<'EOF'
           import re
           p = 'android/app/build.gradle.kts'
           s = open(p, encoding='utf-8').read()
-          s, count = re.subn(r'applicationId\s*=\s*"[^"]+"', 'applicationId = "com.daily_trackar.help"', s, count=1)
+          s, count = re.subn(r'applicationId\s*=\s*"[^"]+"', 'applicationId = "com.dwb.test"', s, count=1)
           if count != 1:
-              raise SystemExit('Could not set main applicationId')
+              raise SystemExit('Could not set DWB applicationId')
           open(p, 'w', encoding='utf-8').write(s)
-          print('MAIN applicationId = com.daily_trackar.help')
+          print('MAIN applicationId = com.dwb.test')
           EOF
       - name: Configure Android and Kotlin compatibility
         run: |
@@ -83,7 +83,7 @@ jobs:
         run: |
           test -f assets/app_icon.png || (echo "Missing assets/app_icon.png. Upload the Daily Tracker logo to this path." && exit 1)
           dart run flutter_launcher_icons
-      - run: sed -i 's/android:label="[^"]*"/android:label="Daily Tracker"/' android/app/src/main/AndroidManifest.xml
+      - run: sed -i 's/android:label="[^"]*"/android:label="DWB"/' android/app/src/main/AndroidManifest.xml
       - name: Patch Android for notifications
         run: |
           python3 - <<'EOF'
@@ -211,10 +211,10 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-      - name: Name MAIN APK
+      - name: Name DWB APK
         run: cp build/app/outputs/flutter-apk/app-release.apk "build/app/outputs/flutter-apk/Daily Tracker.apk"
       - uses: actions/upload-artifact@v4
         with:
-          name: Daily Tracker-apk
-          path: build/app/outputs/flutter-apk/Daily Tracker.apk
+          name: DWB-apk
+          path: build/app/outputs/flutter-apk/DWB.apk
           
