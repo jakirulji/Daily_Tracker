@@ -113,6 +113,8 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
       await _dwbChannel.invokeMethod<bool>('configureBlocking', {
         'enabled': _strictBlockingEnabled && _usageAccess && _overlayAccess,
         'selectedPackages': _blockedPackages.toList(),
+        'gentlePackages': _gentlePackages.toList(),
+        'gentleReminderMinutes': _reminderMinutes,
         'limits': _limits.map((key, value) => MapEntry(key, value)),
       });
     } on PlatformException {
