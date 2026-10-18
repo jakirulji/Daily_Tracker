@@ -54,7 +54,10 @@ object DwbBridge {
                             .putBoolean("enabled", enabled && selected.isNotEmpty())
                             .putStringSet("selectedPackages", selected.toSet())
                             .putStringSet("gentlePackages", gentle.toSet())
-                            .putInt("gentleReminderMinutes", gentleReminder.coerceIn(0, 60))
+                            .putInt("gentleReminderMinutes", gentleReminder.coerceIn(1, 60))
+                            .putBoolean("gentlePauseEnabled", call.argument<Boolean>("gentlePauseEnabled") ?: true)
+                            .putInt("gentlePauseSeconds", (call.argument<Int>("gentlePauseSeconds") ?: 10).coerceIn(0, 60))
+                            .putBoolean("gentleOverlayReminders", call.argument<Boolean>("gentleOverlayReminders") ?: true)
                         limits.forEach { (pkg, minutes) -> editor.putInt("limit.$pkg", minutes.coerceIn(0, 1440)) }
                         editor.apply()
                         if ((enabled && selected.isNotEmpty()) || gentle.isNotEmpty()) {
