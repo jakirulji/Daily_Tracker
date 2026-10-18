@@ -36,7 +36,9 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
   int _pauseSeconds = 10;
   int _reminderMinutes = 5;
   final Set<String> _pausedPackages = {};
-  final Set<String> _blockedPackages = {};
+  final Set<String> _blockedPackages = {}; // Strict mode packages
+  final Set<String> _gentlePackages = {};
+  bool _permissionDialogShowing = false;
   final Map<String, int> _limits = {};
   List<_UsageApp> _apps = [];
   String _query = '';
@@ -76,6 +78,10 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
       _blockedPackages
         ..clear()
         ..addAll(p.getStringList('dwb.blockedPackages') ?? const []);
+      _gentlePackages
+        ..clear()
+        ..addAll(p.getStringList('dwb.gentlePackages') ?? const []);
+      _gentlePackages.removeAll(_blockedPackages);
       _limits.clear();
       for (final key in p.getKeys().where((k) => k.startsWith('dwb.limit.'))) {
         _limits[key.substring('dwb.limit.'.length)] = p.getInt(key) ?? 30;
@@ -91,6 +97,7 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
     await p.setBool('dwb.overlayReminders', _overlayReminders);
     await p.setBool('dwb.strictBlockingEnabled', _strictBlockingEnabled);
     await p.setStringList('dwb.blockedPackages', _blockedPackages.toList());
+    await p.setStringList('dwb.gentlePackages', _gentlePackages.toList());
     await p.setInt('dwb.pauseSeconds', _pauseSeconds);
     await p.setInt('dwb.reminderMinutes', _reminderMinutes);
     await p.setStringList('dwb.pausedPackages', _pausedPackages.toList());
@@ -123,7 +130,10 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
       }
       if (!mounted) return;
       setState(() { _usageAccess = access; _overlayAccess = overlay; _apps = apps; _loading = false; });
-      if (_strictBlockingEnabled) await _syncBlocking();
+      await _syncBlocking();
+      if (!_usageAccess || (_strictBlockingEnabled && !_overlayAccess)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _showPermissionPrompt(); });
+      }
     } on PlatformException catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
@@ -131,6 +141,78 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+
+  Future<void> _showPermissionPrompt() async {
+    if (!mounted || _permissionDialogShowing || (_usageAccess && (!_strictBlockingEnabled || _overlayAccess))) return;
+    _permissionDialogShowing = true;
+    final needUsage = !_usageAccess;
+    final choice = await showDialog<String>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.admin_panel_settings_rounded, size: 38),
+        title: Text(needUsage ? 'Enable Usage Access' : 'Enable display over other apps'),
+        content: Text(needUsage
+          ? 'Daily Tracker needs Usage Access to calculate app screen time and enforce selected limits. In Android Settings, choose Daily Tracker and enable Usage Access.'
+          : 'Strict Block needs Display over other apps permission to show its pause screen when a selected app reaches its daily limit.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, 'later'), child: const Text('Not now')),
+          FilledButton.icon(onPressed: () => Navigator.pop(dialogContext, needUsage ? 'usage' : 'overlay'), icon: const Icon(Icons.settings_rounded), label: const Text('Open Settings')),
+        ],
+      ),
+    );
+    _permissionDialogShowing = false;
+    if (!mounted || choice == null || choice == 'later') return;
+    if (choice == 'usage') { await _openUsageSettings(); } else { await _openOverlaySettings(); }
+  }
+
+  Future<void> _setAppBlockMode(_UsageApp app, String mode) async {
+    if (mode == 'strict' && (!_usageAccess || !_overlayAccess)) {
+      await _showPermissionPrompt();
+      await _refresh();
+      if (!_usageAccess || !_overlayAccess) return;
+    }
+    setState(() {
+      _blockedPackages.remove(app.packageName);
+      _gentlePackages.remove(app.packageName);
+      if (mode == 'strict') _blockedPackages.add(app.packageName);
+      if (mode == 'gentle') _gentlePackages.add(app.packageName);
+      if (_blockedPackages.isEmpty) _strictBlockingEnabled = false;
+      else _strictBlockingEnabled = true;
+    });
+    await _saveSettings();
+  }
+
+  Future<void> _openBlockSettings(String mode) async {
+    if (mode == 'strict' && (!_usageAccess || !_overlayAccess)) {
+      await _showPermissionPrompt();
+      await _refresh();
+      if (!_usageAccess || !_overlayAccess) return;
+    }
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context, showDragHandle: true,
+      builder: (sheetContext) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(mode == 'strict' ? 'Strict Block setup' : 'Gentle Block setup',
+            style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          Text(mode == 'strict'
+            ? 'Choose Strict Block for each app below. When its daily limit is reached, a pause screen will appear. Usage Access and Display over other apps are required.'
+            : 'Choose Gentle Block for each app below. It uses reminders and mindful pauses instead of forced blocking.'),
+          const SizedBox(height: 12),
+          Text(mode == 'strict' ? 'Selected apps: ${_blockedPackages.length}' : 'Selected apps: ${_gentlePackages.length}'),
+          if (mode == 'strict' && (!_usageAccess || !_overlayAccess))
+            Align(alignment: Alignment.centerRight, child: FilledButton(
+              onPressed: () { Navigator.pop(sheetContext); _showPermissionPrompt(); },
+              child: const Text('Complete permissions'),
+            )),
+        ]),
+      ),
+    );
   }
 
   String _time(int minutes) {
@@ -334,24 +416,30 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(children: [
-                  SwitchListTile(contentPadding: EdgeInsets.zero, value: _strictBlockingEnabled, onChanged: (v) { setState(() => _strictBlockingEnabled = v); _saveSettings(); }, title: const Text('Strict app blocking'), subtitle: Text(_strictBlockingEnabled ? 'Selected apps lock after their daily limit until tomorrow.' : 'Off · selected apps can open normally'), secondary: const Icon(Icons.lock_outline_rounded)),
-                  if (_strictBlockingEnabled) Padding(padding: const EdgeInsets.only(bottom: 10), child: Text(_usageAccess && _overlayAccess ? 'Ready: select apps below with the lock button. Limit reached = full-screen pause screen on every reopen.' : 'Grant both Usage Access and Display over other apps permissions. Strict blocking stays inactive until both are granted.', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant))),
-                  SwitchListTile(contentPadding: EdgeInsets.zero, value: _pauseEnabled, onChanged: (v) { setState(() => _pauseEnabled = v); _saveSettings(); }, title: const Text('Mindful pause'), subtitle: const Text('Pause briefly before launching an app')),
-                  if (_pauseEnabled) ...[
-                    Row(children: [
-                      const Expanded(child: Text('Pause duration')),
-                      DropdownButton<int>(value: _pauseSeconds, items: const [3, 5, 10, 15, 20, 30].map((v) => DropdownMenuItem(value: v, child: Text('$v sec'))).toList(), onChanged: (v) { if (v != null) setState(() => _pauseSeconds = v); _saveSettings(); }),
-                    ]),
-                  ],
+                  ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.shield_rounded),
+                    title: const Text('Strict Block', style: TextStyle(fontWeight: FontWeight.w800)),
+                    subtitle: Text('${_blockedPackages.length} apps selected · daily limit + pause screen'),
+                    trailing: const Icon(Icons.chevron_right_rounded), onTap: () => _openBlockSettings('strict')),
+                  const Divider(),
+                  ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.spa_rounded),
+                    title: const Text('Gentle Block', style: TextStyle(fontWeight: FontWeight.w800)),
+                    subtitle: Text('${_gentlePackages.length} apps selected · reminders and mindful pause'),
+                    trailing: const Icon(Icons.chevron_right_rounded), onTap: () => _openBlockSettings('gentle')),
+                  const Divider(),
+                  SwitchListTile(contentPadding: EdgeInsets.zero, value: _pauseEnabled, onChanged: (v) { setState(() => _pauseEnabled = v); _saveSettings(); }, title: const Text('Mindful pause'), subtitle: const Text('Pause briefly before launching a selected app')),
+                  if (_pauseEnabled) Row(children: [
+                    const Expanded(child: Text('Pause duration')),
+                    DropdownButton<int>(value: _pauseSeconds, items: const [3, 5, 10, 15, 20, 30].map((v) => DropdownMenuItem(value: v, child: Text('$v sec'))).toList(), onChanged: (v) { if (v != null) setState(() => _pauseSeconds = v); _saveSettings(); }),
+                  ]),
                   SwitchListTile(contentPadding: EdgeInsets.zero, value: _guiltMode, onChanged: (v) { setState(() => _guiltMode = v); _saveSettings(); }, title: const Text('Time awareness'), subtitle: const Text('Show today and yesterday usage in each app row')),
-                  SwitchListTile(contentPadding: EdgeInsets.zero, value: _overlayReminders, onChanged: (v) { setState(() => _overlayReminders = v); _saveSettings(); }, title: const Text('Overlay at time limit'), subtitle: const Text('Requires Android “Display over other apps” permission')),
+                  SwitchListTile(contentPadding: EdgeInsets.zero, value: _overlayReminders, onChanged: (v) { setState(() => _overlayReminders = v); _saveSettings(); }, title: const Text('Overlay at time limit'), subtitle: const Text('Requires Display over other apps permission')),
                 ]),
               ),
             ),
             const SizedBox(height: 18),
             Text('App usage', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
             const SizedBox(height: 4),
-            Text('Configure a daily limit. With Strict app blocking enabled, lock selected apps after the limit is reached.', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
+            Text('Choose Off, Strict or Gentle for each app. A new choice replaces the previous mode for that app.', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
             const SizedBox(height: 10),
             TextField(
               decoration: const InputDecoration(prefixIcon: Icon(Icons.search_rounded), hintText: 'Search apps', isDense: true),
@@ -390,7 +478,19 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
                         icon: Icon(_pausedPackages.contains(app.packageName) ? Icons.pause_circle_filled_rounded : Icons.pause_circle_outline_rounded,
                             color: _pausedPackages.contains(app.packageName) ? cs.primary : cs.onSurfaceVariant),
                       ),
-                      IconButton(tooltip: _blockedPackages.contains(app.packageName) ? 'Remove strict block' : 'Select for strict blocking', onPressed: () { setState(() { if (_blockedPackages.contains(app.packageName)) { _blockedPackages.remove(app.packageName); } else { _blockedPackages.add(app.packageName); } }); _saveSettings(); }, icon: Icon(_blockedPackages.contains(app.packageName) ? Icons.lock_rounded : Icons.lock_open_rounded, color: _blockedPackages.contains(app.packageName) ? cs.error : cs.onSurfaceVariant)),
+                      PopupMenuButton<String>(
+                        tooltip: 'Choose block mode',
+                        initialValue: _blockedPackages.contains(app.packageName) ? 'strict' : (_gentlePackages.contains(app.packageName) ? 'gentle' : 'off'),
+                        onSelected: (mode) => _setAppBlockMode(app, mode),
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(value: 'off', child: ListTile(dense: true, leading: Icon(Icons.block_outlined), title: Text('Off'))),
+                          PopupMenuItem(value: 'strict', child: ListTile(dense: true, leading: Icon(Icons.lock_outline_rounded), title: Text('Strict Block'))),
+                          PopupMenuItem(value: 'gentle', child: ListTile(dense: true, leading: Icon(Icons.spa_outlined), title: Text('Gentle Block'))),
+                        ],
+                        child: Padding(padding: const EdgeInsets.all(8), child: Icon(
+                          _blockedPackages.contains(app.packageName) ? Icons.lock_rounded : (_gentlePackages.contains(app.packageName) ? Icons.spa_rounded : Icons.shield_outlined),
+                          color: _blockedPackages.contains(app.packageName) ? cs.error : (_gentlePackages.contains(app.packageName) ? cs.primary : cs.onSurfaceVariant))),
+                      ),
                       IconButton(tooltip: 'App settings', onPressed: () => _configureApp(app), icon: const Icon(Icons.tune_rounded)),
                     ]),
                     const SizedBox(height: 6),
