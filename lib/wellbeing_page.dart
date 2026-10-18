@@ -177,7 +177,7 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
   }
 
   Future<bool> _pauseBeforeOpen(_UsageApp app) async {
-    if (!_pauseEnabled) return true;
+    if (!_pauseEnabled || !_pausedPackages.contains(app.packageName)) return true;
     var remaining = _pauseSeconds;
     Timer? timer;
     final accepted = await showDialog<bool>(
@@ -349,6 +349,21 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
                         Text(app.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
                         Text(_guiltMode ? 'Today ${_time(app.todayMinutes)} · Yesterday ${_time(app.yesterdayMinutes)}' : 'Today ${_time(app.todayMinutes)}', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
                       ])),
+                      IconButton(
+                        tooltip: _pausedPackages.contains(app.packageName) ? 'Remove mindful pause' : 'Add mindful pause',
+                        onPressed: () {
+                          setState(() {
+                            if (_pausedPackages.contains(app.packageName)) {
+                              _pausedPackages.remove(app.packageName);
+                            } else {
+                              _pausedPackages.add(app.packageName);
+                            }
+                          });
+                          _saveSettings();
+                        },
+                        icon: Icon(_pausedPackages.contains(app.packageName) ? Icons.pause_circle_filled_rounded : Icons.pause_circle_outline_rounded,
+                            color: _pausedPackages.contains(app.packageName) ? cs.primary : cs.onSurfaceVariant),
+                      ),
                       IconButton(tooltip: 'App settings', onPressed: () => _configureApp(app), icon: const Icon(Icons.tune_rounded)),
                     ]),
                     const SizedBox(height: 6),
