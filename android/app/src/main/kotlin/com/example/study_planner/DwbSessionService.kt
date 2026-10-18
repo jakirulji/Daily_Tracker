@@ -62,6 +62,7 @@ class DwbSessionService : Service() {
     private var foregroundPackage: String? = null
     private var foregroundSince = 0L
     private var foregroundBaseUsageMs = 0L
+    private val gentleNextReminderAt = HashMap<String, Long>()
 
     private val ticker = object : Runnable {
         override fun run() {
@@ -77,7 +78,18 @@ class DwbSessionService : Service() {
             val current = currentForegroundPackage(now)
             if (current == targetPackage) lastTargetSeenAt = now
             if (now - lastTargetSeenAt > 15000L) {
-                stopSelf()
+                if (blockingMonitor) {
+                    // A focus session ending must not kill the persistent block monitor.
+                    targetPackage = ""
+                    appLabel = "App"
+                    limitMs = 0L
+                    reminderMs = 0L
+                    overlayEnabled = false
+                    lastTargetSeenAt = 0L
+                    handler.postDelayed(this, 1000L)
+                } else {
+                    stopSelf()
+                }
                 return
             }
             val elapsed = now - startedAt
@@ -123,8 +135,9 @@ class DwbSessionService : Service() {
             return START_STICKY
         }
         val blockingPrefs = getSharedPreferences("dwb_blocking", Context.MODE_PRIVATE)
-        blockingMonitor = blockingPrefs.getBoolean("enabled", false) &&
-            !blockingPrefs.getStringSet("selectedPackages", emptySet()).isNullOrEmpty()
+        blockingMonitor = (blockingPrefs.getBoolean("enabled", false) &&
+            !blockingPrefs.getStringSet("selectedPackages", emptySet()).isNullOrEmpty()) ||
+            !blockingPrefs.getStringSet("gentlePackages", emptySet()).isNullOrEmpty()
         targetPackage = intent?.getStringExtra(EXTRA_PACKAGE).orEmpty()
         appLabel = intent?.getStringExtra(EXTRA_LABEL) ?: targetPackage
         val limit = intent?.getIntExtra(EXTRA_LIMIT_MINUTES, 0) ?: 0
@@ -151,18 +164,43 @@ class DwbSessionService : Service() {
 
     private fun checkStrictBlocking() {
         val prefs = getSharedPreferences("dwb_blocking", Context.MODE_PRIVATE)
-        if (!prefs.getBoolean("enabled", false) || !Settings.canDrawOverlays(this) || !hasUsageAccess()) {
-            removeOverlay()
-            stopSelf()
-            return
-        }
+        val strictEnabled = prefs.getBoolean("enabled", false)
         val selected = prefs.getStringSet("selectedPackages", emptySet())?.toSet().orEmpty()
-        if (selected.isEmpty()) {
+        val gentleSelected = prefs.getStringSet("gentlePackages", emptySet())?.toSet().orEmpty()
+        val gentleReminderMinutes = prefs.getInt("gentleReminderMinutes", 5).coerceIn(0, 60)
+
+        if (!hasUsageAccess()) {
             removeOverlay()
             stopSelf()
             return
         }
+        if (!strictEnabled && gentleSelected.isEmpty()) {
+            removeOverlay()
+            stopSelf()
+            return
+        }
+        val canStrictBlock = strictEnabled && selected.isNotEmpty() && Settings.canDrawOverlays(this)
+        if (!canStrictBlock) removeOverlay()
+
         val now = System.currentTimeMillis()
+        val previousForeground = foregroundPackage
+        val current = currentForegroundPackage(now)
+
+        // Gentle mode only sends reminders. It never displays the strict blocking overlay.
+        if (gentleReminderMinutes > 0 && current != null && current in gentleSelected) {
+            val next = gentleNextReminderAt[current] ?: (now + gentleReminderMinutes * 60000L)
+            if (now >= next) {
+                showNotification("Take a mindful pause", "You have been using ${appLabelFor(current)}. Pause, then decide whether to continue.")
+                gentleNextReminderAt[current] = now + gentleReminderMinutes * 60000L
+            } else {
+                gentleNextReminderAt.putIfAbsent(current, next)
+            }
+        } else if (current != null) {
+            gentleNextReminderAt.remove(current)
+        }
+
+        if (!canStrictBlock) return
+
         val dayStart = java.util.Calendar.getInstance().apply {
             set(java.util.Calendar.HOUR_OF_DAY, 0)
             set(java.util.Calendar.MINUTE, 0)
@@ -179,8 +217,6 @@ class DwbSessionService : Service() {
             }
         }
 
-        val previousForeground = foregroundPackage
-        val current = currentForegroundPackage(now)
         if (current != previousForeground) {
             foregroundBaseUsageMs = current?.let { usedMs[it] ?: 0L } ?: 0L
         }
@@ -200,9 +236,6 @@ class DwbSessionService : Service() {
                 continue
             }
             var used = usedMs[pkg] ?: 0L
-            // UsageStats can lag while an app remains foregrounded. Compare its
-            // total with the baseline plus the live foreground interval instead
-            // of blindly adding time (which could double-count updated stats).
             if (current == pkg && foregroundSince > 0L) {
                 used = maxOf(used, foregroundBaseUsageMs + (now - foregroundSince).coerceAtLeast(0L))
             }
@@ -215,7 +248,7 @@ class DwbSessionService : Service() {
             }
         }
         if (lockedPackage != null) {
-            showBlockingOverlay(lockedPackage!!, lockedLabel)
+            showBlockingOverlay(lockedPackage, lockedLabel)
             getSystemService(NotificationManager::class.java).notify(
                 BLOCKING_NOTIFICATION_ID,
                 buildNotification("Daily limit reached for $lockedLabel. The pause screen will appear when it is opened again.")
