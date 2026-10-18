@@ -181,7 +181,7 @@ class DwbSessionService : Service() {
         accessibilityForegroundPackage = pkg
         accessibilityForegroundAt = now
         if (old != pkg) {
-            foregroundPackage = pkg
+            if (overlay != null && overlayPackage != pkg) removeOverlay()
             foregroundSince = now
             if (blockingMonitor) checkStrictBlocking()
         }
@@ -589,6 +589,7 @@ class DwbSessionService : Service() {
     }
 
     override fun onDestroy() {
+        if (liveInstance === this) liveInstance = null
         handler.removeCallbacks(ticker)
         removeOverlay()
         getSystemService(NotificationManager::class.java).cancel(NOTIFICATION_ID)
