@@ -42,7 +42,7 @@ jobs:
           if count != 1:
               raise SystemExit('Could not set DWB applicationId')
           open(p, 'w', encoding='utf-8').write(s)
-          print('MAIN applicationId = com.dwb.test')
+          print('DWB applicationId = com.dwb.test')
           EOF
       - name: Configure Android and Kotlin compatibility
         run: |
@@ -212,7 +212,7 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       - name: Name DWB APK
-        run: cp build/app/outputs/flutter-apk/app-release.apk "build/app/outputs/flutter-apk/Daily Tracker.apk"
+        run: cp build/app/outputs/flutter-apk/app-release.apk "build/app/outputs/flutter-apk/DWB.apk"
       - uses: actions/upload-artifact@v4
         with:
           name: DWB-apk
