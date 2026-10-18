@@ -150,7 +150,7 @@ jobs:
           ]
           for permission in permissions:
               if permission not in m:
-                  m = m.replace('<application', f'    <uses-permission android:name="{permission}"/>\\n<application', 1)
+                  m = m.replace('<application', f'    <uses-permission android:name="{permission}"/>\n<application', 1)
           if '<queries>' not in m:
               queries = '''<queries>
               <intent>
