@@ -108,19 +108,22 @@ object DwbBridge {
         val yesterdayStart = (todayCalendar.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, -1) }.timeInMillis
         val stats = manager.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, yesterdayStart, now)
             .groupBy { it.packageName }
-        val intent = Intent(Intent.ACTION_MAIN, null).addCategory(Intent.CATEGORY_LAUNCHER)
-        val apps: List<ResolveInfo> = if (android.os.Build.VERSION.SDK_INT >= 33) {
-            context.packageManager.queryIntentActivities(intent, PackageManager.ResolveInfoFlags.of(0L))
+        // QUERY_ALL_PACKAGES is added to the DWB manifest by the GitHub Actions build.
+        // Enumerate installed packages, then keep user-launchable apps so app labels and
+        // package IDs (including Facebook/YouTube) are available for selection.
+        val apps = if (android.os.Build.VERSION.SDK_INT >= 33) {
+            context.packageManager.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(0L))
         } else {
             @Suppress("DEPRECATION")
-            context.packageManager.queryIntentActivities(intent, 0)
+            context.packageManager.getInstalledApplications(0)
         }
         val seen = HashSet<String>()
         val rows = ArrayList<Map<String, Any>>()
-        for (ri in apps) {
-            val pkg = ri.activityInfo?.packageName ?: continue
+        for (info in apps) {
+            val pkg = info.packageName
             if (pkg == context.packageName || !seen.add(pkg)) continue
-            val label = runCatching { ri.loadLabel(context.packageManager).toString() }.getOrDefault(pkg)
+            val launchIntent = context.packageManager.getLaunchIntentForPackage(pkg) ?: continue
+            val label = runCatching { context.packageManager.getApplicationLabel(info).toString() }.getOrDefault(pkg)
             val entries = stats[pkg].orEmpty()
             val today = entries.filter { it.lastTimeUsed >= todayStart }.sumOf { it.totalTimeInForeground } / 60000L
             val yesterday = entries.filter { it.lastTimeUsed in yesterdayStart until todayStart }.sumOf { it.totalTimeInForeground } / 60000L
