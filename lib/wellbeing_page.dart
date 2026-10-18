@@ -32,9 +32,11 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
   bool _pauseEnabled = true;
   bool _guiltMode = true;
   bool _overlayReminders = false;
+  bool _strictBlockingEnabled = false;
   int _pauseSeconds = 10;
   int _reminderMinutes = 5;
   final Set<String> _pausedPackages = {};
+  final Set<String> _blockedPackages = {};
   final Map<String, int> _limits = {};
   List<_UsageApp> _apps = [];
   String _query = '';
@@ -65,16 +67,21 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
       _pauseEnabled = p.getBool('dwb.pauseEnabled') ?? true;
       _guiltMode = p.getBool('dwb.guiltMode') ?? true;
       _overlayReminders = p.getBool('dwb.overlayReminders') ?? false;
+      _strictBlockingEnabled = p.getBool('dwb.strictBlockingEnabled') ?? false;
       _pauseSeconds = p.getInt('dwb.pauseSeconds') ?? 10;
       _reminderMinutes = p.getInt('dwb.reminderMinutes') ?? 5;
       _pausedPackages
         ..clear()
         ..addAll(p.getStringList('dwb.pausedPackages') ?? const []);
+      _blockedPackages
+        ..clear()
+        ..addAll(p.getStringList('dwb.blockedPackages') ?? const []);
       _limits.clear();
       for (final key in p.getKeys().where((k) => k.startsWith('dwb.limit.'))) {
         _limits[key.substring('dwb.limit.'.length)] = p.getInt(key) ?? 30;
       }
     });
+    await _syncBlocking();
   }
 
   Future<void> _saveSettings() async {
@@ -82,12 +89,27 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
     await p.setBool('dwb.pauseEnabled', _pauseEnabled);
     await p.setBool('dwb.guiltMode', _guiltMode);
     await p.setBool('dwb.overlayReminders', _overlayReminders);
+    await p.setBool('dwb.strictBlockingEnabled', _strictBlockingEnabled);
+    await p.setStringList('dwb.blockedPackages', _blockedPackages.toList());
     await p.setInt('dwb.pauseSeconds', _pauseSeconds);
     await p.setInt('dwb.reminderMinutes', _reminderMinutes);
     await p.setStringList('dwb.pausedPackages', _pausedPackages.toList());
     for (final entry in _limits.entries) {
       await p.setInt('dwb.limit.${entry.key}', entry.value);
     }
+    await _syncBlocking();
+  }
+
+  Future<void> _syncBlocking() async {
+    try {
+      await _dwbChannel.invokeMethod<bool>('configureBlocking', {
+        'enabled': _strictBlockingEnabled && _usageAccess && _overlayAccess,
+        'selectedPackages': _blockedPackages.toList(),
+        'limits': _limits.map((key, value) => MapEntry(key, value)),
+      });
+    } on PlatformException {
+      // Permission or Android service failures are surfaced in the UI on refresh.
+    } catch (_) {}
   }
 
   Future<void> _refresh() async {
@@ -101,6 +123,7 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
       }
       if (!mounted) return;
       setState(() { _usageAccess = access; _overlayAccess = overlay; _apps = apps; _loading = false; });
+      if (_strictBlockingEnabled) await _syncBlocking();
     } on PlatformException catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
@@ -138,13 +161,13 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
             const SizedBox(height: 4),
             Text(app.packageName, style: Theme.of(sheetContext).textTheme.bodySmall),
             const SizedBox(height: 18),
-            Text('Session time limit: ${limit == 0 ? 'Off' : '$limit minutes'}'),
+            Text('Daily app limit: ${limit == 0 ? 'Off' : '$limit minutes'}'),
             Slider(
               min: 0, max: 180, divisions: 36, value: limit.toDouble(),
               label: limit == 0 ? 'Off' : '$limit min',
               onChanged: (v) => setSheet(() => limit = v.round()),
             ),
-            const Text('0 = no limit · Set a limit for a focused session'),
+            const Text('0 = no limit · Strict blocking locks the app until the next day after this limit'),
             const SizedBox(height: 12),
             DropdownButtonFormField<int>(
               value: reminder,
@@ -302,8 +325,8 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
             else if (!_overlayAccess)
               _permissionCard(
                 icon: Icons.layers_outlined,
-                title: 'Optional: allow overlay reminders',
-                text: 'Enables the full-screen pause reminder when a focus-session limit is reached. Notifications still work without it.',
+                title: 'Allow display over other apps',
+                text: _strictBlockingEnabled ? 'Strict blocking needs this permission to show a full-screen pause screen over selected apps.' : 'Optional for focus-session pause reminders. Strict app blocking requires this permission.',
                 action: 'Grant overlay',
                 onTap: _openOverlaySettings,
               ),
@@ -311,6 +334,8 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(children: [
+                  SwitchListTile(contentPadding: EdgeInsets.zero, value: _strictBlockingEnabled, onChanged: (v) { setState(() => _strictBlockingEnabled = v); _saveSettings(); }, title: const Text('Strict app blocking'), subtitle: Text(_strictBlockingEnabled ? 'Selected apps lock after their daily limit until tomorrow.' : 'Off · selected apps can open normally'), secondary: const Icon(Icons.lock_outline_rounded)),
+                  if (_strictBlockingEnabled) Padding(padding: const EdgeInsets.only(bottom: 10), child: Text(_usageAccess && _overlayAccess ? 'Ready: select apps below with the lock button. Limit reached = full-screen pause screen on every reopen.' : 'Grant both Usage Access and Display over other apps permissions. Strict blocking stays inactive until both are granted.', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant))),
                   SwitchListTile(contentPadding: EdgeInsets.zero, value: _pauseEnabled, onChanged: (v) { setState(() => _pauseEnabled = v); _saveSettings(); }, title: const Text('Mindful pause'), subtitle: const Text('Pause briefly before launching an app')),
                   if (_pauseEnabled) ...[
                     Row(children: [
@@ -326,7 +351,7 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
             const SizedBox(height: 18),
             Text('App usage', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
             const SizedBox(height: 4),
-            Text('Set a session limit, then tap Start focus to open an app with a timer.', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
+            Text('Configure a daily limit. With Strict app blocking enabled, lock selected apps after the limit is reached.', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
             const SizedBox(height: 10),
             TextField(
               decoration: const InputDecoration(prefixIcon: Icon(Icons.search_rounded), hintText: 'Search apps', isDense: true),
@@ -365,6 +390,7 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
                         icon: Icon(_pausedPackages.contains(app.packageName) ? Icons.pause_circle_filled_rounded : Icons.pause_circle_outline_rounded,
                             color: _pausedPackages.contains(app.packageName) ? cs.primary : cs.onSurfaceVariant),
                       ),
+                      IconButton(tooltip: _blockedPackages.contains(app.packageName) ? 'Remove strict block' : 'Select for strict blocking', onPressed: () { setState(() { if (_blockedPackages.contains(app.packageName)) { _blockedPackages.remove(app.packageName); } else { _blockedPackages.add(app.packageName); } }); _saveSettings(); }, icon: Icon(_blockedPackages.contains(app.packageName) ? Icons.lock_rounded : Icons.lock_open_rounded, color: _blockedPackages.contains(app.packageName) ? cs.error : cs.onSurfaceVariant)),
                       IconButton(tooltip: 'App settings', onPressed: () => _configureApp(app), icon: const Icon(Icons.tune_rounded)),
                     ]),
                     const SizedBox(height: 6),
@@ -373,7 +399,7 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
                     Row(children: [
                       Icon(Icons.timer_outlined, size: 17, color: cs.primary),
                       const SizedBox(width: 5),
-                      Expanded(child: Text('Session limit: ${limit == 0 ? 'Off' : '$limit min'}', style: Theme.of(context).textTheme.bodySmall)),
+                      Expanded(child: Text('Daily limit: ${limit == 0 ? 'Off' : '$limit min'}', style: Theme.of(context).textTheme.bodySmall)),
                       TextButton(onPressed: () => _configureApp(app), child: const Text('Configure')),
                       const SizedBox(width: 4),
                       FilledButton.tonalIcon(onPressed: () => _startSession(app), icon: const Icon(Icons.play_arrow_rounded, size: 18), label: const Text('Start focus')),
