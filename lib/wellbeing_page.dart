@@ -39,6 +39,7 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
   final Set<String> _blockedPackages = {}; // Strict mode packages
   final Set<String> _gentlePackages = {};
   bool _permissionDialogShowing = false;
+  bool _permissionPromptForStrict = false;
   final Map<String, int> _limits = {};
   List<_UsageApp> _apps = [];
   String _query = '';
@@ -145,7 +146,7 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
 
 
   Future<void> _showPermissionPrompt() async {
-    if (!mounted || _permissionDialogShowing || (_usageAccess && (!_strictBlockingEnabled || _overlayAccess))) return;
+    if (!mounted || _permissionDialogShowing || (_usageAccess && (!_permissionPromptForStrict || _overlayAccess))) return;
     _permissionDialogShowing = true;
     final needUsage = !_usageAccess;
     final choice = await showDialog<String>(
@@ -170,9 +171,11 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
 
   Future<void> _setAppBlockMode(_UsageApp app, String mode) async {
     if (mode == 'strict' && (!_usageAccess || !_overlayAccess)) {
+      _permissionPromptForStrict = true;
       await _showPermissionPrompt();
       await _refresh();
-      if (!_usageAccess || !_overlayAccess) return;
+      if (!_usageAccess || !_overlayAccess) { _permissionPromptForStrict = false; return; }
+      _permissionPromptForStrict = false;
     }
     setState(() {
       _blockedPackages.remove(app.packageName);
