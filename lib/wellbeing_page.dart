@@ -193,29 +193,124 @@ class _WellbeingPageState extends State<WellbeingPage> with WidgetsBindingObserv
       _permissionPromptForStrict = true;
       await _showPermissionPrompt();
       await _refresh();
-      if (!_usageAccess || !_overlayAccess) { _permissionPromptForStrict = false; return; }
+      if (!_usageAccess || !_overlayAccess) {
+        _permissionPromptForStrict = false;
+        return;
+      }
       _permissionPromptForStrict = false;
     }
     if (!mounted) return;
+    var search = '';
     await showModalBottomSheet<void>(
-      context: context, showDragHandle: true,
-      builder: (sheetContext) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(mode == 'strict' ? 'Strict Block setup' : 'Gentle Block setup',
-            style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-          const SizedBox(height: 8),
-          Text(mode == 'strict'
-            ? 'Choose Strict Block for each app below. When its daily limit is reached, a pause screen will appear. Usage Access and Display over other apps are required.'
-            : 'Choose Gentle Block for each app below. It uses reminders and mindful pauses instead of forced blocking.'),
-          const SizedBox(height: 12),
-          Text(mode == 'strict' ? 'Selected apps: ${_blockedPackages.length}' : 'Selected apps: ${_gentlePackages.length}'),
-          if (mode == 'strict' && (!_usageAccess || !_overlayAccess))
-            Align(alignment: Alignment.centerRight, child: FilledButton(
-              onPressed: () { Navigator.pop(sheetContext); _showPermissionPrompt(); },
-              child: const Text('Complete permissions'),
-            )),
-        ]),
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheet) {
+          final selected = mode == 'strict' ? _blockedPackages : _gentlePackages;
+          final apps = _apps.where((app) =>
+            app.label.toLowerCase().contains(search.toLowerCase()) ||
+            app.packageName.toLowerCase().contains(search.toLowerCase())).toList();
+          return SizedBox(
+            height: MediaQuery.of(sheetContext).size.height * 0.88,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      Icon(mode == 'strict' ? Icons.shield_rounded : Icons.spa_rounded,
+                        color: mode == 'strict' ? Theme.of(sheetContext).colorScheme.error : Theme.of(sheetContext).colorScheme.primary, size: 28),
+                      const SizedBox(width: 10),
+                      Expanded(child: Text(mode == 'strict' ? 'Strict Block' : 'Gentle Block',
+                        style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800))),
+                      Text('${selected.length} selected', style: Theme.of(sheetContext).textTheme.labelLarge),
+                    ]),
+                    const SizedBox(height: 8),
+                    Text(mode == 'strict'
+                      ? 'Select apps to block after their daily limit. The pause screen stays active when you leave Daily Tracker.'
+                      : 'Select apps for gentle, non-forcing reminders while you use them. Strict settings are kept separate.'),
+                    const SizedBox(height: 12),
+                    TextField(
+                      decoration: const InputDecoration(prefixIcon: Icon(Icons.search_rounded), hintText: 'Search installed apps', isDense: true),
+                      onChanged: (value) => setSheet(() => search = value),
+                    ),
+                    if (mode == 'strict' && (!_usageAccess || !_overlayAccess)) ...[
+                      const SizedBox(height: 8),
+                      SizedBox(width: double.infinity, child: FilledButton.icon(
+                        onPressed: () { Navigator.pop(sheetContext); _showPermissionPrompt(); },
+                        icon: const Icon(Icons.settings_rounded), label: const Text('Complete permissions'),
+                      )),
+                    ],
+                    const SizedBox(height: 4),
+                    Text('Tap an app to select it. Each app can be in only one mode.',
+                      style: Theme.of(sheetContext).textTheme.bodySmall),
+                  ]),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: _loading
+                    ? const Center(child: CircularProgressIndicator())
+                    : !_usageAccess
+                      ? const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('Grant Usage Access to load installed apps.')))
+                      : apps.isEmpty
+                        ? const Center(child: Text('No matching apps found.'))
+                        : ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(12, 8, 12, 18),
+                            itemCount: apps.length,
+                            itemBuilder: (context, index) {
+                              final app = apps[index];
+                              final isSelected = selected.contains(app.packageName);
+                              final limit = _limits[app.packageName] ?? 30;
+                              return Card(
+                                margin: const EdgeInsets.symmetric(vertical: 4),
+                                child: Column(children: [
+                                  CheckboxListTile(
+                                    value: isSelected,
+                                    controlAffinity: ListTileControlAffinity.leading,
+                                    secondary: CircleAvatar(child: Icon(mode == 'strict' ? Icons.lock_rounded : Icons.spa_rounded)),
+                                    title: Text(app.label, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                                    subtitle: Text('${_time(app.todayMinutes)} today · daily limit: ${limit == 0 ? 'Off' : '$limit min'}'),
+                                    onChanged: (value) async {
+                                      await _setAppBlockMode(app, value == true ? mode : 'off');
+                                      if (mounted) setSheet(() {});
+                                    },
+                                  ),
+                                  if (isSelected)
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                                      child: Row(children: [
+                                        const Icon(Icons.timer_outlined, size: 18),
+                                        const SizedBox(width: 8),
+                                        Expanded(child: Text('Daily limit: ${limit == 0 ? 'Off' : '$limit min'}')),
+                                        TextButton.icon(
+                                          onPressed: () async {
+                                            await _configureApp(app);
+                                            if (mounted) setSheet(() {});
+                                          },
+                                          icon: const Icon(Icons.tune_rounded, size: 18),
+                                          label: const Text('Limit'),
+                                        ),
+                                      ]),
+                                    ),
+                                ]),
+                              );
+                            },
+                          ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  child: SizedBox(width: double.infinity, child: FilledButton(
+                    onPressed: () => Navigator.pop(sheetContext),
+                    child: const Text('Done'),
+                  )),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
