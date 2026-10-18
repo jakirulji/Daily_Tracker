@@ -123,6 +123,58 @@ jobs:
           open(gp, 'w', encoding='utf-8').write(g)
           print('patched manifest and gradle')
           EOF
+      - name: Register Digital Wellbeing native bridge
+        run: |
+          mkdir -p android/app/src/main/kotlin/com/example/study_planner
+          cat > android/app/src/main/kotlin/com/example/study_planner/MainActivity.kt <<'EOF'
+          package com.example.study_planner
+
+          import io.flutter.embedding.android.FlutterActivity
+          import io.flutter.embedding.engine.FlutterEngine
+
+          class MainActivity : FlutterActivity() {
+              override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+                  super.configureFlutterEngine(flutterEngine)
+                  DwbBridge.register(this, flutterEngine)
+              }
+          }
+          EOF
+          python3 - <<'PY'
+          p = 'android/app/src/main/AndroidManifest.xml'
+          m = open(p, encoding='utf-8').read()
+          permissions = [
+              'android.permission.PACKAGE_USAGE_STATS',
+              'android.permission.SYSTEM_ALERT_WINDOW',
+              'android.permission.FOREGROUND_SERVICE',
+              'android.permission.FOREGROUND_SERVICE_SPECIAL_USE',
+          ]
+          for permission in permissions:
+              if permission not in m:
+                  m = m.replace('<application', f'    <uses-permission android:name="{permission}"/>\\n<application', 1)
+          if '<queries>' not in m:
+              queries = '''<queries>
+              <intent>
+                  <action android:name="android.intent.action.MAIN"/>
+                  <category android:name="android.intent.category.LAUNCHER"/>
+              </intent>
+          </queries>
+          '''
+              m = m.replace('<application', queries + '<application', 1)
+          service = '''
+                  <service
+                      android:name="com.example.study_planner.DwbSessionService"
+                      android:exported="false"
+                      android:foregroundServiceType="specialUse">
+                      <property
+                          android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                          android:value="Digital wellbeing focus-session timer and usage reminders"/>
+                  </service>
+          '''
+          if 'DwbSessionService' not in m:
+              m = m.replace('</application>', service + '\\n    </application>', 1)
+          open(p, 'w', encoding='utf-8').write(m)
+          print('registered DWB method channel, Usage Access, overlay and focus-session service')
+          PY
       - name: Register Android exam home-screen widgets
         run: |
           python3 - <<'EOF'
