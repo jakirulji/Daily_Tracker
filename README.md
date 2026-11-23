@@ -213,7 +213,8 @@ Steps the workflow performs:
   7. flutter build apk --release
   8. upload build/app/outputs/flutter-apk/app-release.apk
 Required repository secrets:
-  KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD
+  KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD,
+  GOOGLE_SERVER_CLIENT_ID (Google OAuth Web client ID for Drive backup)
 Keep the SAME keystore forever, otherwise the new APK cannot update the old
 install (signature mismatch).
 
