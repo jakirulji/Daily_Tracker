@@ -12,6 +12,7 @@ import 'ui.dart';
 import 'exam_page.dart';
 import 'appearance_page.dart';
 import 'attention.dart';
+import 'cloud_backup.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -71,6 +72,7 @@ class SettingsPage extends StatelessWidget {
               onTap: () => Navigator.push(c, MaterialPageRoute(builder: (_) => const ExamPage())),
             ),
           ],
+          const CloudBackupCard(),
           const Divider(),
           const AttentionSettings(),
           const Divider(),
