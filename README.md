@@ -320,12 +320,17 @@ Google Drive OAuth setup (required before testing cloud backup)
    testing as a test user while the app is in Testing mode.
 4. Create an Android OAuth client for package ID
    `com.test.daily_tracker` and the SHA-1 fingerprint of the SAME release
-   keystore used by the TEST APK. The fingerprint can be read locally with:
+   keystore used by the TEST APK. Also create a Web application OAuth client;
+   the Android Google Sign-In plugin needs its Web client ID because this repo
+   does not bundle `google-services.json`. The fingerprint can be read locally with:
    `keytool -list -v -keystore <your-keystore.jks> -alias <your-key-alias>`
 5. Do not commit keystore files or passwords. The CI workflow signs the TEST
    APK with repository secrets; the OAuth Android client must match that
    signing certificate and package ID.
-6. Install the TEST APK, open Settings -> Google Drive Backup, and connect the
+6. Add the Web client ID to GitHub repository Settings -> Secrets and variables
+   -> Actions as `GOOGLE_SERVER_CLIENT_ID` (keep it private; do not commit it).
+   The workflow passes this value into the app at build time.
+7. Install the TEST APK, open Settings -> Google Drive Backup, and connect the
    test Google account. Grant the requested Drive file access.
 
 The Drive integration requests only the `drive.file` scope and creates or
