@@ -244,7 +244,7 @@ Local build (optional)
 --------------------------------------------------------------------------------
 - Timer progress is lost on profile switch or app kill.
 - Reminders only cover the next 7 days (refreshed on app open).
-- No cloud sync, only manual backup.
+- Google Drive cloud backup/restore is available; see the OAuth setup below. Manual file/text backup remains available.
 - No Bangla/other localization; UI strings are hard-coded English.
 - No month view in stats; no habit/expense profile types yet.
 - The whole app is one global store; fine at this size, split if it grows.
@@ -263,3 +263,42 @@ Reading order: this README -> lib/store.dart -> lib/main.dart -> the page you
 need to change. When you change code, keep the data-model rules in section 4 and
 always return complete files, not fragments.
 ================================================================================
+
+
+--------------------------------------------------------------------------------
+GOOGLE DRIVE CLOUD BACKUP (MAIN APK)
+--------------------------------------------------------------------------------
+The MAIN app includes automatic and manual Google Drive backup/restore.
+It stores one app-owned JSON backup file named "Daily Tracker Backup.json"
+in the connected Google account and retains one current version. The payload
+contains both Daily Tracker profile data and Tuition Tracker student data.
+
+OAuth / Google Cloud setup:
+1. In Google Cloud Console, select the project and enable the Google Drive API.
+2. Configure the OAuth consent screen. Add the Google account you will use as a
+   test user while the consent screen is in Testing mode.
+3. Create an Android OAuth client for the MAIN package ID:
+   com.daily_trackar.help
+   Use the SHA-1 fingerprint of the release signing certificate used by the
+   MAIN APK. This repository's MAIN workflow signs with KEYSTORE_BASE64,
+   KEYSTORE_PASSWORD, KEY_ALIAS and KEY_PASSWORD GitHub Actions secrets.
+4. Create a Web application OAuth client in the same Google Cloud project.
+   The Web client ID is passed to Flutter at build time; no client secret is
+   embedded in the APK.
+5. In GitHub repository Settings -> Secrets and variables -> Actions, add
+   GOOGLE_SERVER_CLIENT_ID with the Web application OAuth client ID.
+   Do not commit a client secret, keystore, or keystore password.
+6. Run the "Build APK" workflow on the main branch. Install the resulting
+   "Daily Tracker.apk", open Settings -> Google Drive Backup and connect the
+   Google account.
+
+The app requests only the drive.file scope. Automatic uploads are debounced
+after local saves; the app also checks for a daily backup when opened/resumed.
+Android does not guarantee an exact background upload time. On a fresh install,
+if a cloud backup is found, the app asks whether to restore it or replace it
+with the current device's data. Restore is validated before applying and includes
+both tracker and tuition data.
+
+Security note: Google Drive account access and HTTPS protect the transfer and
+stored file, but the JSON is not end-to-end encrypted by the app. Do not treat
+Drive backup as a zero-knowledge encrypted vault.
