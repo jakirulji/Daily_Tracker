@@ -11,6 +11,7 @@ import 'notify.dart';
 import 'ui.dart';
 import 'exam_page.dart';
 import 'appearance_page.dart';
+import 'cloud_backup.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -57,6 +58,7 @@ class SettingsPage extends StatelessWidget {
               onTap: () => Navigator.push(c, MaterialPageRoute(builder: (_) => const AppearancePage())),
             ),
           ),
+          const CloudBackupCard(),
           if (st.tracker) ...[
             ListTile(
               title: Text('Daily goal: ${st.goal} h'),
