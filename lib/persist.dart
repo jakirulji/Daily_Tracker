@@ -11,6 +11,7 @@ class Persist {
   static String loadedFrom = 'not loaded yet';
   static DateTime? lastSaved;
   static Directory? _dir;
+  static void Function(String key)? onCloudBackupRequested;
 
   static Future<File?> _file(String key) async {
     try {
@@ -67,7 +68,10 @@ class Persist {
     } catch (e) {
       lastError = 'file write: $e';
     }
-    if (ok) lastSaved = DateTime.now();
+    if (ok) {
+      lastSaved = DateTime.now();
+      if (key == 'data' || key == 'tuition_data') onCloudBackupRequested?.call(key);
+    }
     return ok;
   }
 
