@@ -11,6 +11,7 @@ import 'stats_page.dart';
 import 'settings_page.dart';
 import 'prayer_page.dart';
 import 'tuition.dart';
+import 'cloud_backup.dart';
 
 // Saves again whenever the app goes to the background or is closed.
 class _Flush with WidgetsBindingObserver {
@@ -19,6 +20,9 @@ class _Flush with WidgetsBindingObserver {
     if (s == AppLifecycleState.paused || s == AppLifecycleState.detached) {
       st.save(q: true);
       tst.save();
+    }
+    if (s == AppLifecycleState.resumed) {
+      CloudBackupService.instance.onAppResumed();
     }
   }
 }
@@ -36,6 +40,7 @@ Future<void> main() async {
   } catch (_) {}
   runApp(const App());
   unawaited(_initializeApp());
+  unawaited(CloudBackupService.instance.initialize());
 }
 
 Future<void> _initializeApp() async {
