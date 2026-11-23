@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'persist.dart';
 import 'store.dart';
@@ -23,6 +24,7 @@ class CloudBackupService extends ChangeNotifier {
 
   final GoogleSignIn _google = GoogleSignIn(scopes: const [_scope]);
   GoogleSignInAccount? _account;
+  _GoogleAuthClient? _httpClient;
   String? _fileId;
   DateTime? _lastBackupAt;
   Timer? _debounce;
@@ -47,7 +49,13 @@ class CloudBackupService extends ChangeNotifier {
       _account = await _google.signInSilently();
       if (_account != null) {
         await detectBackup();
-        if (!_restoreAvailable && !_needsDecision) await backupNow();
+        if (_restoreAvailable) {
+          final prefs = await SharedPreferences.getInstance();
+          _needsDecision = prefs.getString('cloud_backup_account') != _account!.email;
+          if (_needsDecision) _status = 'Cloud backup found. Choose Restore or Use this device.';
+        } else {
+          await backupNow();
+        }
       } else {
         _status = 'Connect Google Drive to enable cloud backup';
       }
@@ -66,7 +74,9 @@ class CloudBackupService extends ChangeNotifier {
     if (token == null || token.isEmpty) {
       throw StateError('Google authorization expired. Reconnect Google Drive.');
     }
-    return drive.DriveApi(_GoogleAuthClient(token));
+    _httpClient?.close();
+    _httpClient = _GoogleAuthClient(token);
+    return drive.DriveApi(_httpClient!);
   }
 
   Future<void> connect() async {
@@ -79,10 +89,13 @@ class CloudBackupService extends ChangeNotifier {
         return;
       }
       _error = '';
-      await detectBackup();
+      await _loadBackupList();
+      final prefs = await SharedPreferences.getInstance();
+      _needsDecision = _restoreAvailable && prefs.getString('cloud_backup_account') != _account!.email;
       if (_restoreAvailable) {
-        _needsDecision = true;
-        _status = 'Backup found. Restore it or choose this device as the source.';
+        _status = _needsDecision
+            ? 'Backup found. Restore it or choose this device as the source.'
+            : 'Connected · existing backup detected';
       } else {
         _needsDecision = false;
         await _uploadBackup();
@@ -99,6 +112,8 @@ class CloudBackupService extends ChangeNotifier {
   Future<void> disconnect() async {
     _debounce?.cancel();
     try { await _google.signOut(); } catch (_) {}
+    _httpClient?.close();
+    _httpClient = null;
     _account = null;
     _fileId = null;
     _restoreAvailable = false;
@@ -113,38 +128,37 @@ class CloudBackupService extends ChangeNotifier {
     if (_account == null || _busy) return;
     _setBusy(true, 'Searching for your backup…');
     try {
-      final api = await _driveApi();
-      final result = await api.files.list(
-        q: "appProperties has { key='$_propertyKey' and value='$_propertyValue' } and trashed=false",
-        spaces: 'drive',
-        pageSize: 20,
-        $fields: 'files(id,name,modifiedTime,size)',
-        orderBy: 'modifiedTime desc',
-      );
-      final files = result.files ?? <drive.File>[];
-      if (files.isEmpty) {
-        _fileId = null;
-        _lastBackupAt = null;
-        _restoreAvailable = false;
-        _needsDecision = false;
-        _status = 'No cloud backup found';
-      } else {
-        _fileId = files.first.id;
-        _lastBackupAt = DateTime.tryParse(files.first.modifiedTime ?? '');
-        _restoreAvailable = true;
-        _status = 'Backup found';
-        for (final extra in files.skip(1)) {
-          if (extra.id != null) {
-            try { await api.files.delete(extra.id!); } catch (_) {}
-          }
-        }
-      }
+      await _loadBackupList();
       _error = '';
     } catch (e) {
       _error = _friendlyError(e);
       _status = 'Backup detection failed';
     } finally {
       _setBusy(false);
+    }
+  }
+
+  Future<void> _loadBackupList() async {
+    final api = await _driveApi();
+    final result = await api.files.list(
+      q: "appProperties has { key='$_propertyKey' and value='$_propertyValue' } and trashed=false",
+      spaces: 'drive',
+      pageSize: 20,
+      $fields: 'files(id,name,modifiedTime,size)',
+      orderBy: 'modifiedTime desc',
+    );
+    final files = result.files ?? <drive.File>[];
+    if (files.isEmpty) {
+      _fileId = null;
+      _lastBackupAt = null;
+      _restoreAvailable = false;
+      _needsDecision = false;
+      _status = 'No cloud backup found';
+    } else {
+      _fileId = files.first.id;
+      _lastBackupAt = DateTime.tryParse(files.first.modifiedTime ?? '');
+      _restoreAvailable = true;
+      _status = 'Backup found';
     }
   }
 
@@ -222,6 +236,19 @@ class CloudBackupService extends ChangeNotifier {
       await api.files.update(metadata, _fileId!, uploadMedia: media);
     }
     if (_fileId == null) throw StateError('Google Drive did not return a backup file ID.');
+    final prefs = await SharedPreferences.getInstance();
+    if (_account != null) await prefs.setString('cloud_backup_account', _account!.email);
+    final leftovers = await api.files.list(
+      q: "appProperties has { key='$_propertyKey' and value='$_propertyValue' } and trashed=false",
+      spaces: 'drive',
+      pageSize: 50,
+      $fields: 'files(id)',
+    );
+    for (final old in leftovers.files ?? <drive.File>[]) {
+      if (old.id != null && old.id != _fileId) {
+        try { await api.files.delete(old.id!); } catch (_) {}
+      }
+    }
     _lastBackupAt = DateTime.now();
     _restoreAvailable = true;
     _needsDecision = false;
@@ -262,6 +289,8 @@ class CloudBackupService extends ChangeNotifier {
       tst.apply(decoded['tuitionData'] as String);
       await st.save();
       await tst.save();
+      final prefs = await SharedPreferences.getInstance();
+      if (_account != null) await prefs.setString('cloud_backup_account', _account!.email);
       _needsDecision = false;
       _restoreAvailable = true;
       _status = 'Restore completed successfully';
