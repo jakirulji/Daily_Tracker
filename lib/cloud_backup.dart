@@ -200,7 +200,7 @@ class CloudBackupService extends ChangeNotifier {
     _setBusy(true, 'Uploading backup…');
     try {
       await _uploadBackup();
-      _status = 'Backup completed · \${DateTime.now().toLocal()}';
+      _status = 'Backup completed · ${DateTime.now().toLocal()}';
       _error = '';
     } catch (e) {
       _error = _friendlyError(e);
