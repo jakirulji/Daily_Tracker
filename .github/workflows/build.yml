@@ -71,6 +71,7 @@ jobs:
           mp = 'android/app/src/main/AndroidManifest.xml'
           m = open(mp, encoding='utf-8').read()
           perms = "\n".join([
+              '    <uses-permission android:name="android.permission.INTERNET"/>',
               '    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>',
               '    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>',
               '    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>',
