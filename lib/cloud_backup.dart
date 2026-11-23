@@ -22,7 +22,11 @@ class CloudBackupService extends ChangeNotifier {
   static const _propertyKey = 'daily_tracker_backup';
   static const _propertyValue = 'v1';
 
-  final GoogleSignIn _google = GoogleSignIn(scopes: const [_scope]);
+  static const _serverClientId = String.fromEnvironment('GOOGLE_SERVER_CLIENT_ID');
+  final GoogleSignIn _google = GoogleSignIn(
+    scopes: const [_scope],
+    serverClientId: _serverClientId.isEmpty ? null : _serverClientId,
+  );
   GoogleSignInAccount? _account;
   _GoogleAuthClient? _httpClient;
   String? _fileId;
