@@ -15,7 +15,8 @@ modify the whole project from this file alone. Read sections 1-6 first.
 - State management     : one global ChangeNotifier singleton `st` (class Store)
 - Storage              : shared_preferences, key "data" (JSON)
 - Packages             : shared_preferences, flutter_local_notifications ^17,
-                         timezone, share_plus ^10, path_provider, file_picker ^8
+                         timezone, share_plus ^10, path_provider, file_picker ^8,
+                         google_sign_in ^6, googleapis Drive API, http
 - Platform             : Android only. The android/ folder is NOT committed; it is
                          generated in CI (see section 8)
 - Size                 : ~1000 lines in 9 files under lib/
@@ -244,7 +245,10 @@ Local build (optional)
 --------------------------------------------------------------------------------
 - Timer progress is lost on profile switch or app kill.
 - Reminders only cover the next 7 days (refreshed on app open).
-- No cloud sync, only manual backup.
+- Google Drive backup: one app-owned JSON snapshot (main + tuition data),
+  drive.file OAuth scope, automatic upload after local saves, manual upload,
+  backup detection and one-tap restore. Android OAuth client setup is required;
+  backup content is not end-to-end encrypted.
 - No Bangla/other localization; UI strings are hard-coded English.
 - No month view in stats; no habit/expense profile types yet.
 - The whole app is one global store; fine at this size, split if it grows.
