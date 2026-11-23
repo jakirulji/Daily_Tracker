@@ -283,10 +283,18 @@ class CloudBackupService extends ChangeNotifier {
           tuition is! Map || tuition['students'] is! List) {
         throw const FormatException('Backup contents failed validation.');
       }
-      if (!st.apply(decoded['mainData'] as String)) {
-        throw const FormatException('Daily Tracker data could not be restored.');
+      final previousMain = st.json;
+      final previousTuition = tst.json;
+      try {
+        if (!st.apply(decoded['mainData'] as String)) {
+          throw const FormatException('Daily Tracker data could not be restored.');
+        }
+        tst.apply(decoded['tuitionData'] as String);
+      } catch (_) {
+        st.apply(previousMain);
+        tst.apply(previousTuition);
+        rethrow;
       }
-      tst.apply(decoded['tuitionData'] as String);
       await st.save();
       await tst.save();
       final prefs = await SharedPreferences.getInstance();
